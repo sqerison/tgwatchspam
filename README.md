@@ -1,6 +1,6 @@
 # tgwatchspam
 
-Telegram spam filter bot for Ukrainian community groups. Written in Go, self-hosted, zero external dependencies.
+Self-hosted Telegram spam filter bot for community groups. Written in Go, zero external dependencies, managed entirely through Telegram commands.
 
 **Documentation:** [sqerison.github.io/tgwatchspam](https://sqerison.github.io/tgwatchspam)
 
