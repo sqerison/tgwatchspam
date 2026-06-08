@@ -570,7 +570,7 @@ digital nomad</pre>
 
   <pre>/tgwatch_log            # last 10 entries
 /tgwatch_log 25         # last 25 entries (max 50)
-/tgwatch_log clear      # clear the log for this chat (asks YES)</pre>
+/tgwatch_log clear      # clear the log for this chat (inline button)</pre>
 
   <!-- ── Multi-Chat ── -->
   <h2 id="multi-chat">Multi-Chat Support</h2>
@@ -594,7 +594,7 @@ digital nomad</pre>
     <tr><td><code>/tgwatch_add word</code> + lines</td><td><span class="badge badge-admin">Admin</span></td><td>Bulk add — one word per line after the command</td></tr>
     <tr><td><code>/tgwatch_remove word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove a word</td></tr>
     <tr><td><code>/tgwatch_list words</code></td><td><span class="badge badge-admin">Admin</span></td><td>List all blocked words</td></tr>
-    <tr><td><code>/tgwatch_clear words</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all words (asks YES)</td></tr>
+    <tr><td><code>/tgwatch_clear words</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all words (inline button confirmation)</td></tr>
   </table>
   </div>
 
@@ -605,7 +605,7 @@ digital nomad</pre>
     <tr><td><code>/tgwatch_add regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Add a RE2 regex pattern (<code>(?i)</code> applied automatically)</td></tr>
     <tr><td><code>/tgwatch_remove regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove a pattern</td></tr>
     <tr><td><code>/tgwatch_list regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>List all patterns</td></tr>
-    <tr><td><code>/tgwatch_clear regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all patterns (asks YES)</td></tr>
+    <tr><td><code>/tgwatch_clear regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all patterns (inline button confirmation)</td></tr>
   </table>
   </div>
 
@@ -638,8 +638,9 @@ digital nomad</pre>
     <tr><td><code>/tgwatch_show settings</code></td><td><span class="badge badge-admin">Admin</span></td><td>Show all current settings for this chat</td></tr>
     <tr><td><code>/tgwatch_check &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Test text against filters without taking action</td></tr>
     <tr><td><code>/tgwatch_log [n]</code></td><td><span class="badge badge-admin">Admin</span></td><td>Show last N spam entries (default 10, max 50)</td></tr>
-    <tr><td><code>/tgwatch_log clear</code></td><td><span class="badge badge-admin">Admin</span></td><td>Clear the spam log for this chat (asks YES)</td></tr>
+    <tr><td><code>/tgwatch_log clear</code></td><td><span class="badge badge-admin">Admin</span></td><td>Clear the spam log for this chat (inline button confirmation)</td></tr>
     <tr><td><code>/tgwatch_clean</code></td><td><span class="badge badge-admin">Admin</span></td><td>Delete all bot replies and admin commands from chat</td></tr>
+    <tr><td><code>/tgwatch_help</code></td><td><span class="badge badge-admin">Admin</span></td><td>Show all available commands in chat</td></tr>
     <tr><td><code>/tgwatch_copy &lt;src_id&gt; &lt;dst_id&gt;</code></td><td><span class="badge badge-super">Superadmin</span></td><td>Copy all settings from one chat to another (use in DM)</td></tr>
   </table>
   </div>
