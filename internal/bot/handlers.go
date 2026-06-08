@@ -133,7 +133,7 @@ func (h *handler) handle(update tgbotapi.Update) {
 	}
 
 	// YES confirmation for /clear and /copy [FEAT-001, FEAT-002, FEAT-009, FEAT-012]
-	if strings.TrimSpace(msg.Text) == "YES" && !msg.IsCommand() {
+	if strings.ToUpper(strings.TrimSpace(msg.Text)) == "YES" && !msg.IsCommand() {
 		isAdmin, _ := h.admin.IsAdmin(msg.Chat.ID, msg.From.ID)
 		if isAdmin || h.admin.IsSuperAdmin(msg.From.ID) {
 			h.handleConfirm(msg)
@@ -371,6 +371,8 @@ func (h *handler) handleCommand(msg *tgbotapi.Message) {
 		h.handleLog(msg, args) // [FEAT-009]
 	case "clean":
 		h.handleClean(chatID) // [FEAT-013]
+	case "help":
+		h.handleHelp(chatID)
 	}
 }
 
@@ -424,18 +426,28 @@ func (h *handler) handleConfirm(msg *tgbotapi.Message) {
 // handleAdd handles /add word and /add regex [FEAT-001, FEAT-002, FEAT-011]
 func (h *handler) handleAdd(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
-	parts := strings.SplitN(args, " ", 2)
-	subCmd := strings.ToLower(strings.TrimSpace(parts[0]))
+	// Split on first whitespace character (space OR newline) to get the sub-command.
+	// CommandArguments() returns the full args including newlines, so splitting on
+	// space alone fails for multiline messages like "/tgwatch_add word\nline1\nline2".
+	firstWS := strings.IndexAny(args, " \t\n\r")
+	var subCmd, rest string
+	if firstWS < 0 {
+		subCmd = strings.ToLower(strings.TrimSpace(args))
+	} else {
+		subCmd = strings.ToLower(strings.TrimSpace(args[:firstWS]))
+		rest = strings.TrimLeft(args[firstWS+1:], " \t")
+	}
 
 	switch subCmd {
 	case "word":
 		var words []string
-		if len(parts) > 1 && strings.TrimSpace(parts[1]) != "" {
-			words = []string{strings.TrimSpace(parts[1])}
-		} else {
-			// Multiline bulk import: each line after the first is a word [FEAT-011]
-			lines := strings.Split(msg.Text, "\n")
-			for _, line := range lines[1:] {
+		firstLine := strings.SplitN(rest, "\n", 2)[0]
+		if strings.TrimSpace(firstLine) != "" && !strings.Contains(rest, "\n") {
+			// Single word/phrase on the same line: /tgwatch_add word bitcoin
+			words = []string{strings.TrimSpace(rest)}
+		} else if strings.Contains(rest, "\n") || strings.TrimSpace(firstLine) == "" {
+			// Multiline bulk import: each line is a word/phrase [FEAT-011]
+			for _, line := range strings.Split(rest, "\n") {
 				line = strings.TrimSpace(line)
 				if line != "" {
 					words = append(words, line)
@@ -462,11 +474,11 @@ func (h *handler) handleAdd(msg *tgbotapi.Message, args string) {
 		}
 
 	case "regex":
-		if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
-			h.sendHTML(chatID, "Usage: <code>/add regex &lt;pattern&gt;</code>")
+		if strings.TrimSpace(rest) == "" {
+			h.sendHTML(chatID, "Usage: <code>/tgwatch_add regex &lt;pattern&gt;</code>")
 			return
 		}
-		pattern := strings.TrimSpace(parts[1])
+		pattern := strings.TrimSpace(rest)
 		if _, err := filter.CompileRegex(pattern); err != nil {
 			h.sendHTML(chatID, fmt.Sprintf("Invalid regex pattern:\n<code>%s</code>", html.EscapeString(err.Error())))
 			return
@@ -483,7 +495,7 @@ func (h *handler) handleAdd(msg *tgbotapi.Message, args string) {
 		}
 
 	default:
-		h.send(chatID, "Usage: /add word <text>  or  /add regex <pattern>")
+		h.send(chatID, "Usage: /tgwatch_add word <text>  or  /tgwatch_add regex <pattern>")
 	}
 }
 
@@ -492,7 +504,7 @@ func (h *handler) handleRemove(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
 	parts := strings.SplitN(args, " ", 2)
 	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
-		h.send(chatID, "Usage: /remove word <text> or /remove regex <pattern>")
+		h.send(chatID, "Usage: /tgwatch_remove word <text> or /tgwatch_remove regex <pattern>")
 		return
 	}
 	subCmd := strings.ToLower(strings.TrimSpace(parts[0]))
@@ -536,7 +548,7 @@ func (h *handler) handleList(chatID int64, args string) {
 			return
 		}
 		if len(words) == 0 {
-			h.send(chatID, "No blocked words yet. Use /add word to add some.")
+			h.send(chatID, "No blocked words yet. Use /tgwatch_add word to add some.")
 			return
 		}
 		escaped := make([]string, len(words))
@@ -554,7 +566,7 @@ func (h *handler) handleList(chatID int64, args string) {
 			return
 		}
 		if len(patterns) == 0 {
-			h.send(chatID, "No regex patterns yet. Use /add regex to add some.")
+			h.send(chatID, "No regex patterns yet. Use /tgwatch_add regex to add some.")
 			return
 		}
 		lines := make([]string, len(patterns))
@@ -566,22 +578,33 @@ func (h *handler) handleList(chatID int64, args string) {
 			len(patterns), strings.Join(lines, "\n"),
 		))
 	default:
-		h.send(chatID, "Usage: /list words  or  /list regex")
+		h.send(chatID, "Usage: /tgwatch_list words  or  /tgwatch_list regex")
 	}
 }
 
-// handleClear handles /clear words and /clear regex (with confirmation)
+// handleClear handles /clear words and /clear regex (with inline button confirmation)
 func (h *handler) handleClear(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
+	userID := msg.From.ID
 	switch strings.TrimSpace(strings.ToLower(args)) {
 	case "words":
-		h.confirms.set(chatID, msg.From.ID, "clear words")
-		h.sendHTML(chatID, "This will remove <b>all blocked words</b> for this chat. Reply <b>YES</b> to confirm (60s timeout).")
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Yes, clear all words", fmt.Sprintf("confirm:words:%d:%d", chatID, userID)),
+				tgbotapi.NewInlineKeyboardButtonData("Cancel", fmt.Sprintf("confirm:cancel:%d:%d", chatID, userID)),
+			),
+		)
+		h.sendWithKeyboard(chatID, "This will remove <b>all blocked words</b> for this chat.", keyboard)
 	case "regex":
-		h.confirms.set(chatID, msg.From.ID, "clear regex")
-		h.sendHTML(chatID, "This will remove <b>all regex patterns</b> for this chat. Reply <b>YES</b> to confirm (60s timeout).")
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Yes, clear all patterns", fmt.Sprintf("confirm:regex:%d:%d", chatID, userID)),
+				tgbotapi.NewInlineKeyboardButtonData("Cancel", fmt.Sprintf("confirm:cancel:%d:%d", chatID, userID)),
+			),
+		)
+		h.sendWithKeyboard(chatID, "This will remove <b>all regex patterns</b> for this chat.", keyboard)
 	default:
-		h.send(chatID, "Usage: /clear words  or  /clear regex")
+		h.send(chatID, "Usage: /tgwatch_clear words  or  /tgwatch_clear regex")
 	}
 }
 
@@ -590,7 +613,7 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
 	parts := strings.SplitN(args, " ", 2)
 	if len(parts) < 2 {
-		h.send(chatID, "Usage: /set <action|mute_duration|sandbox|sandbox_duration|name_filter> <value>")
+		h.send(chatID, "Usage: /tgwatch_set <action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout> <value>")
 		return
 	}
 	key := strings.ToLower(strings.TrimSpace(parts[0]))
@@ -636,7 +659,7 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 			}
 			h.send(chatID, "Sandbox disabled. New members can post immediately.")
 		default:
-			h.send(chatID, "Usage: /set sandbox on|off")
+			h.send(chatID, "Usage: /tgwatch_set sandbox on|off")
 		}
 
 	case "sandbox_duration":
@@ -666,7 +689,7 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 			}
 			h.send(chatID, "Name filter disabled.")
 		default:
-			h.send(chatID, "Usage: /set name_filter on|off")
+			h.send(chatID, "Usage: /tgwatch_set name_filter on|off")
 		}
 
 	case "verification":
@@ -684,7 +707,7 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 			}
 			h.send(chatID, "Verification disabled. New members can post immediately (subject to sandbox settings).")
 		default:
-			h.send(chatID, "Usage: /set verification on|off")
+			h.send(chatID, "Usage: /tgwatch_set verification on|off")
 		}
 
 	case "verification_timeout":
@@ -741,7 +764,7 @@ func (h *handler) handleShowSettings(chatID int64) {
 // handleCheck tests a message against filters without taking action. [FEAT-008]
 func (h *handler) handleCheck(chatID int64, text string) {
 	if strings.TrimSpace(text) == "" {
-		h.send(chatID, "Usage: /check <message text>")
+		h.send(chatID, "Usage: /tgwatch_check <message text>")
 		return
 	}
 	result, err := h.filter.Check(chatID, text)
@@ -792,8 +815,13 @@ func (h *handler) handleLog(msg *tgbotapi.Message, args string) {
 	args = strings.TrimSpace(args)
 
 	if strings.ToLower(args) == "clear" {
-		h.confirms.set(chatID, msg.From.ID, "clear log")
-		h.sendHTML(chatID, "This will clear the <b>entire spam log</b> for this chat. Reply <b>YES</b> to confirm (60s timeout).")
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Yes, clear log", fmt.Sprintf("confirm:log:%d:%d", chatID, msg.From.ID)),
+				tgbotapi.NewInlineKeyboardButtonData("Cancel", fmt.Sprintf("confirm:cancel:%d:%d", chatID, msg.From.ID)),
+			),
+		)
+		h.sendWithKeyboard(chatID, "This will clear the <b>entire spam log</b> for this chat.", keyboard)
 		return
 	}
 
@@ -801,7 +829,7 @@ func (h *handler) handleLog(msg *tgbotapi.Message, args string) {
 	if args != "" {
 		n, err := strconv.Atoi(args)
 		if err != nil || n < 1 {
-			h.send(chatID, "Usage: /log [n|clear]")
+			h.send(chatID, "Usage: /tgwatch_log [n|clear]")
 			return
 		}
 		if n > 50 {
@@ -838,7 +866,7 @@ func (h *handler) handleCopy(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
 	parts := strings.Fields(args)
 	if len(parts) != 2 {
-		h.send(chatID, "Usage: /copy <source_chat_id> <target_chat_id>")
+		h.send(chatID, "Usage: /tgwatch_copy <source_chat_id> <target_chat_id>")
 		return
 	}
 	srcID, err1 := strconv.ParseInt(parts[0], 10, 64)
@@ -856,8 +884,60 @@ func (h *handler) handleCopy(msg *tgbotapi.Message, args string) {
 	))
 }
 
-// handleCallbackQuery processes inline button presses. Only handles verification buttons. [FEAT-015]
+// handleConfirmCallback handles inline button confirmations for clear/log actions.
+func (h *handler) handleConfirmCallback(query *tgbotapi.CallbackQuery) {
+	parts := strings.SplitN(query.Data, ":", 4)
+	if len(parts) != 4 {
+		return
+	}
+	action := parts[1]
+	chatID, err1 := strconv.ParseInt(parts[2], 10, 64)
+	userID, err2 := strconv.ParseInt(parts[3], 10, 64)
+	if err1 != nil || err2 != nil {
+		return
+	}
+	// Only the admin who triggered the command can confirm
+	if query.From.ID != userID {
+		h.bot.Request(tgbotapi.NewCallback(query.ID, "Only the admin who ran the command can confirm."))
+		return
+	}
+	// Delete the confirmation message
+	if query.Message != nil {
+		h.bot.Request(tgbotapi.NewDeleteMessage(chatID, query.Message.MessageID))
+	}
+	if action == "cancel" {
+		h.bot.Request(tgbotapi.NewCallback(query.ID, "Cancelled."))
+		return
+	}
+	h.bot.Request(tgbotapi.NewCallback(query.ID, ""))
+	switch action {
+	case "words":
+		if err := h.storage.ClearWords(chatID); err != nil {
+			h.send(chatID, "Failed to clear the word list.")
+		} else {
+			h.send(chatID, "Word list cleared.")
+		}
+	case "regex":
+		if err := h.storage.ClearRegexes(chatID); err != nil {
+			h.send(chatID, "Failed to clear regex patterns.")
+		} else {
+			h.send(chatID, "Regex list cleared.")
+		}
+	case "log":
+		if err := h.storage.ClearSpamLog(chatID); err != nil {
+			h.send(chatID, "Failed to clear the spam log.")
+		} else {
+			h.send(chatID, "Spam log cleared.")
+		}
+	}
+}
+
+// handleCallbackQuery processes inline button presses. [FEAT-015]
 func (h *handler) handleCallbackQuery(query *tgbotapi.CallbackQuery) {
+	if strings.HasPrefix(query.Data, "confirm:") {
+		h.handleConfirmCallback(query)
+		return
+	}
 	if !strings.HasPrefix(query.Data, "verify:") {
 		return
 	}
@@ -962,6 +1042,43 @@ func (h *handler) handleClean(chatID int64) {
 		}
 	}
 	log.Printf("clean: deleted %d messages in chat %d", deleted, chatID)
+}
+
+// handleHelp shows a quick command reference.
+func (h *handler) handleHelp(chatID int64) {
+	h.sendHTML(chatID, `<b>tgwatchspam commands</b>
+
+<b>Filters</b>
+/tgwatch_add word &lt;text&gt; — add blocked word/phrase
+/tgwatch_add regex &lt;pattern&gt; — add RE2 regex pattern
+/tgwatch_remove word &lt;text&gt; — remove word
+/tgwatch_remove regex &lt;pattern&gt; — remove pattern
+/tgwatch_list words — list blocked words
+/tgwatch_list regex — list regex patterns
+/tgwatch_clear words — remove all words
+/tgwatch_clear regex — remove all patterns
+
+<b>Actions</b>
+/tgwatch_set action delete — remove message only
+/tgwatch_set action mute — remove + mute for N hours
+/tgwatch_set action kick — remove + kick (can rejoin)
+/tgwatch_set action ban — remove + permanent ban
+/tgwatch_set mute_duration &lt;hours&gt; — mute duration (default 24h)
+
+<b>New member controls</b>
+/tgwatch_set sandbox on|off
+/tgwatch_set sandbox_duration &lt;hours&gt;
+/tgwatch_set verification on|off
+/tgwatch_set verification_timeout &lt;minutes&gt;
+/tgwatch_set name_filter on|off
+/tgwatch_unrestrict — reply to lift sandbox on a user
+
+<b>Management</b>
+/tgwatch_show settings — show current config
+/tgwatch_check &lt;text&gt; — test text against filters
+/tgwatch_log [n] — show last N spam entries
+/tgwatch_log clear — clear spam log
+/tgwatch_clean — delete all bot replies and admin commands`)
 }
 
 // --- Telegram API action helpers ---
