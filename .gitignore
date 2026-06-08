@@ -1,0 +1,12 @@
+.env
+.idea/
+data/
+tgbot
+tgwatchspam
+*.db
+*.log
+bin/
+dist/
+build/
+.DS_Store
+CLAUDE.md

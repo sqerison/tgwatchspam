@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tgwatchspam — Telegram Spam Filter Bot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w: 260px;
+      --sidebar-bg: #0f172a;
+      --sidebar-text: #94a3b8;
+      --sidebar-active: #e2e8f0;
+      --sidebar-accent: #38bdf8;
+      --body-bg: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+      --inline-code-bg: #f1f5f9;
+      --inline-code-text: #0f172a;
+      --accent: #0ea5e9;
+      --accent-light: #f0f9ff;
+      --warn-bg: #fffbeb;
+      --warn-border: #fbbf24;
+      --tip-bg: #f0fdf4;
+      --tip-border: #4ade80;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--body-bg);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    nav {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--sidebar-bg);
+      padding: 32px 0;
+      position: fixed;
+      top: 0; left: 0;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .nav-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 16px;
+    }
+    .nav-logo .name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.3px;
+    }
+    .nav-logo .sub {
+      font-size: 12px;
+      color: var(--sidebar-text);
+      margin-top: 2px;
+    }
+
+    .nav-section {
+      padding: 8px 24px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #475569;
+    }
+
+    nav a {
+      display: block;
+      padding: 6px 24px;
+      font-size: 13.5px;
+      color: var(--sidebar-text);
+      text-decoration: none;
+      transition: color 0.15s;
+      border-left: 3px solid transparent;
+    }
+    nav a:hover { color: var(--sidebar-active); }
+    nav a.active {
+      color: var(--sidebar-accent);
+      border-left-color: var(--sidebar-accent);
+      background: rgba(56,189,248,0.07);
+    }
+
+    /* ── Main content ── */
+    main {
+      margin-left: var(--sidebar-w);
+      padding: 56px 64px;
+      max-width: 860px;
+      width: 100%;
+    }
+
+    /* ── Typography ── */
+    h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 12px; }
+    h2 {
+      font-size: 22px; font-weight: 700; margin: 48px 0 16px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+      scroll-margin-top: 24px;
+    }
+    h3 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; color: #334155; }
+    p { margin-bottom: 14px; }
+    ul, ol { margin: 0 0 14px 20px; }
+    li { margin-bottom: 4px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    strong { font-weight: 600; }
+
+    .lead {
+      font-size: 17px;
+      color: var(--muted);
+      line-height: 1.8;
+      margin-bottom: 32px;
+    }
+
+    /* ── Code ── */
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 18px 22px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 16px 0;
+    }
+    code {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+    }
+    p code, li code, td code {
+      background: var(--inline-code-bg);
+      color: var(--inline-code-text);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 16px 0 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: #f8fafc;
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: #475569;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:nth-child(even) td { background: #fafafa; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .badge-admin { background: #dbeafe; color: #1d4ed8; }
+    .badge-super { background: #fce7f3; color: #9d174d; }
+
+    /* ── Callouts ── */
+    .tip, .warn, .info {
+      padding: 14px 18px;
+      border-radius: 6px;
+      border-left: 4px solid;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    .tip  { background: var(--tip-bg);  border-color: var(--tip-border);  }
+    .warn { background: var(--warn-bg); border-color: var(--warn-border); }
+    .info { background: var(--accent-light); border-color: var(--accent); }
+    .tip strong, .warn strong, .info strong { display: block; margin-bottom: 4px; }
+
+    /* ── Feature cards ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .feature-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+    }
+    .feature-card .feat-id {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    .feature-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+    .feature-card p { font-size: 13px; color: var(--muted); margin: 0; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      color: #f8fafc;
+      padding: 40px 44px;
+      border-radius: 12px;
+      margin-bottom: 40px;
+    }
+    .hero h1 { color: #f8fafc; margin-bottom: 8px; }
+    .hero .lead { color: #94a3b8; margin-bottom: 20px; }
+    .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
+    .hero-tag {
+      background: rgba(255,255,255,0.1);
+      color: #cbd5e1;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* ── Step list ── */
+    .steps { counter-reset: steps; list-style: none; margin: 0 0 24px; padding: 0; }
+    .steps li {
+      counter-increment: steps;
+      padding: 14px 14px 14px 52px;
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .steps li::before {
+      content: counter(steps);
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 26px; height: 26px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .steps li p { margin: 0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav { display: none; }
+      main { margin-left: 0; padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav>
+  <div class="nav-logo">
+    <div class="name">tgwatchspam</div>
+    <div class="sub">Telegram Spam Filter Bot</div>
+  </div>
+
+  <div class="nav-section">Getting Started</div>
+  <a href="#overview">Overview</a>
+  <a href="#setup">Setup</a>
+  <a href="#deployment">Deployment</a>
+
+  <div class="nav-section">Features</div>
+  <a href="#spam-filtering">Spam Filtering</a>
+  <a href="#spam-actions">Spam Actions</a>
+  <a href="#new-members">New Member Controls</a>
+  <a href="#admin-auth">Admin Authorization</a>
+  <a href="#spam-log">Spam Log</a>
+  <a href="#multi-chat">Multi-Chat</a>
+
+  <div class="nav-section">Reference</div>
+  <a href="#commands">Command Reference</a>
+  <a href="#configuration">Configuration</a>
+  <a href="#feature-index">Feature Index</a>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1>tgwatchspam</h1>
+    <p class="lead">A self-hosted Telegram bot that protects community groups from spam — crypto offers, job scams, and recruitment messages. Rule-based, predictable, zero cloud dependency.</p>
+    <div class="hero-tags">
+      <span class="hero-tag">Go</span>
+      <span class="hero-tag">SQLite</span>
+      <span class="hero-tag">Long Polling</span>
+      <span class="hero-tag">~15 MB RAM</span>
+      <span class="hero-tag">Self-hosted</span>
+    </div>
+  </div>
+
+  <!-- ── Overview ── -->
+  <h2 id="overview">Overview</h2>
+  <p>tgwatchspam is built for Ukrainian community groups in Italy that regularly receive unsolicited messages about crypto exchanges, job scams, weight-loss drugs, and immigration services. It runs on a private VPS, requires no web interface, and is managed entirely through Telegram commands.</p>
+
+  <div class="tip">
+    <strong>No web panel, no external services</strong>
+    All management happens inside Telegram. The bot stores data locally in a SQLite file and communicates via long polling — no domain, no SSL certificate, no open ports required.
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feat-id">FEAT-001 / 002</div>
+      <h4>Word &amp; Regex Filters</h4>
+      <p>Blocked words and RE2 regex patterns, per chat. Substring match with no word boundaries.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-id">FEAT-003</div>
+      <h4>Lookalike Normalization</h4>
+      <p>Cyrillic/Latin character substitution is detected and normalized before matching.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-id">FEAT-015</div>
+      <h4>Button Verification</h4>
+      <p>New members must tap an inline button to prove they're human before posting.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-id">FEAT-007</div>
+      <h4>Sandbox Mode</h4>
+      <p>Restricts new members to text-only (no media, no link previews) for a configurable period.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-id">FEAT-010</div>
+      <h4>Name Filter</h4>
+      <p>Checks new members' display name and username against spam filters on join.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feat-id">FEAT-006</div>
+      <h4>Multi-Chat</h4>
+      <p>One bot instance manages multiple groups simultaneously. All data is isolated per chat.</p>
+    </div>
+  </div>
+
+  <!-- ── Setup ── -->
+  <h2 id="setup">Setup</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li>A Linux VPS (any size — the bot uses ~15 MB RAM)</li>
+    <li>A Telegram bot token from <a href="https://t.me/BotFather" target="_blank">@BotFather</a></li>
+    <li>Your numeric Telegram user ID from <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a></li>
+    <li>Go 1.21+ (only needed to build; the binary is self-contained)</li>
+  </ul>
+
+  <h3>First Run</h3>
+  <ol class="steps">
+    <li>
+      <p><strong>Clone and build</strong></p>
+      <pre>git clone https://github.com/sqerison/tgwatchspam
+cd tgwatchspam
+go build -o tgwatchspam ./cmd/bot</pre>
+    </li>
+    <li>
+      <p><strong>Create your <code>.env</code> file</strong></p>
+      <pre>cp .env.example .env
+# Edit .env and fill in BOT_TOKEN and SUPERADMIN_ID</pre>
+    </li>
+    <li>
+      <p><strong>Run the bot</strong></p>
+      <pre>./tgwatchspam</pre>
+      <p>On startup the bot automatically registers all commands with BotFather so users get autocomplete when typing <code>/tgwatch_</code>.</p>
+    </li>
+    <li>
+      <p><strong>Add the bot to your group</strong></p>
+      <p>Grant it admin rights with: <strong>Delete messages</strong>, <strong>Ban users</strong>, <strong>Restrict members</strong>.</p>
+    </li>
+    <li>
+      <p><strong>Verify it works</strong></p>
+      <pre>/tgwatch_show settings</pre>
+      <p>The bot should reply with the default settings for your chat.</p>
+    </li>
+  </ol>
+
+  <!-- ── Deployment ── -->
+  <h2 id="deployment">Deployment</h2>
+  <p>Copy the binary and <code>.env</code> to the server, then create a systemd service so it restarts automatically.</p>
+
+  <pre>scp tgwatchspam .env user@yourserver:/opt/tgwatchspam/</pre>
+
+  <p>Create <code>/etc/systemd/system/tgwatchspam.service</code>:</p>
+
+  <pre>[Unit]
+Description=tgwatchspam Telegram bot
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/tgwatchspam
+ExecStart=/opt/tgwatchspam/tgwatchspam
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</pre>
+
+  <pre>systemctl enable --now tgwatchspam
+journalctl -u tgwatchspam -f   # view live logs</pre>
+
+  <div class="info">
+    <strong>No open ports needed</strong>
+    The bot uses long polling — it connects outbound to Telegram. You do not need to configure any firewall rules, reverse proxy, or SSL certificate.
+  </div>
+
+  <!-- ── Spam Filtering ── -->
+  <h2 id="spam-filtering">Spam Filtering</h2>
+  <p>Every incoming message passes through a three-stage pipeline:</p>
+  <ol>
+    <li><strong>Normalize</strong> — Cyrillic lookalike characters are mapped to their Latin equivalents and the text is lowercased.</li>
+    <li><strong>Word match</strong> — The normalized text is checked against the blocked word list using substring matching (no word boundaries).</li>
+    <li><strong>Regex match</strong> — The normalized text is tested against all RE2 patterns with <code>(?i)</code> prepended automatically.</li>
+  </ol>
+
+  <h3>Word Filtering (FEAT-001)</h3>
+  <p>Words are stored normalized. Matching is case-insensitive and uses substring logic — <code>доход</code> matches <code>доходності</code>, and <code>binance</code> matches <code>binance/bybit</code> (the slash does not break the match, fixing the main flaw of the previous bot).</p>
+
+  <pre>/tgwatch_add word bitcoin
+/tgwatch_add word гарна плата
+
+# Bulk import — one word per line:
+/tgwatch_add word
+bitcoin
+usdt
+крипта
+заробіток
+digital nomad</pre>
+
+  <h3>Regex Filtering (FEAT-002)</h3>
+  <p>Patterns use Go's RE2 syntax. The <code>(?i)</code> flag is added automatically — you do not need to write it. Example patterns:</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Pattern</th><th>Matches</th></tr>
+    <tr><td><code>u[\.\s]?s[\.\s]?d[\.\s]?t</code></td><td>usdt, u.s.d.t, u s d t</td></tr>
+    <tr><td><code>\+3[4-9]\d{7,}</code></td><td>Non-Italian phone numbers</td></tr>
+    <tr><td><code>зп.{0,5}\d+\$</code></td><td>Salary spam like "ЗП: 200$"</td></tr>
+    <tr><td><code>earn.{0,10}\$\d+</code></td><td>"earn $200/day" patterns</td></tr>
+  </table>
+  </div>
+
+  <h3>Cyrillic/Latin Normalization (FEAT-003)</h3>
+  <p>Spammers bypass filters by mixing scripts — for example writing <code>Rоblox</code> with a Cyrillic <code>о</code>. The bot normalizes these before matching:</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Cyrillic</th><th>Maps to</th><th>Cyrillic</th><th>Maps to</th></tr>
+    <tr><td><code>а е о р с х у і</code></td><td><code>a e o p c x y i</code></td><td><code>А В Е К М Н О Р С Т Х У</code></td><td><code>A B E K M H O P C T X Y</code></td></tr>
+  </table>
+  </div>
+
+  <div class="tip">
+    <strong>Testing filters</strong>
+    Use <code>/tgwatch_check &lt;text&gt;</code> to test any message against the current filters without taking any action. The bot will show exactly which rule matched and what would have happened.
+  </div>
+
+  <!-- ── Spam Actions ── -->
+  <h2 id="spam-actions">Spam Actions</h2>
+  <p>When a message matches a filter, the bot takes a configurable action. The message is always deleted first.</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Action</th><th>What happens</th><th>Default</th></tr>
+    <tr><td><code>ban</code></td><td>Message deleted + user permanently banned</td><td>Yes</td></tr>
+    <tr><td><code>kick</code></td><td>Message deleted + user removed (can rejoin via invite)</td><td></td></tr>
+    <tr><td><code>mute</code></td><td>Message deleted + user muted for N hours</td><td></td></tr>
+    <tr><td><code>delete</code></td><td>Message deleted only, no further action</td><td></td></tr>
+  </table>
+  </div>
+
+  <pre>/tgwatch_set action ban
+/tgwatch_set action mute
+/tgwatch_set mute_duration 24    # hours, used when action=mute</pre>
+
+  <p>After every spam detection the bot posts a notification in the group:</p>
+  <div class="info">
+    <strong>Spam removed</strong>
+    User: @spammer<br>
+    Matched word: <code>bitcoin</code><br>
+    Action: permanently banned
+  </div>
+
+  <!-- ── New Members ── -->
+  <h2 id="new-members">New Member Controls</h2>
+
+  <h3>Button Verification (FEAT-015)</h3>
+  <p>When enabled, new members must tap an inline button before they can post anything. This stops the vast majority of bot accounts that join and immediately post spam.</p>
+
+  <p><strong>Flow:</strong></p>
+  <ol>
+    <li>User joins → bot fully restricts them and posts a public message with a button: <em>"I'm not a bot — let me in"</em></li>
+    <li>User taps the button → bot verifies it's the same person → removes the verification message</li>
+    <li>If they don't tap within the timeout → bot kicks them automatically</li>
+  </ol>
+
+  <div class="warn">
+    <strong>Button security</strong>
+    Only the user who joined can click their own button. If another user taps it, they receive a private popup: "This button is not for you."
+  </div>
+
+  <pre>/tgwatch_set verification on
+/tgwatch_set verification_timeout 5    # minutes before auto-kick (default: 2)</pre>
+
+  <h3>Sandbox Mode (FEAT-007)</h3>
+  <p>After passing verification (or immediately if verification is off), new members can be placed in sandbox mode. During sandbox they can post regular text messages but cannot send media, stickers, GIFs, or link previews.</p>
+
+  <p>Sandbox and verification work together:</p>
+  <ul>
+    <li><strong>Verification ON + Sandbox ON</strong> — Must tap button first, then text-only for sandbox_hours</li>
+    <li><strong>Verification ON + Sandbox OFF</strong> — Must tap button, then full access</li>
+    <li><strong>Verification OFF + Sandbox ON</strong> — Text-only immediately, full access after sandbox_hours</li>
+    <li><strong>Both OFF</strong> — No restrictions on new members</li>
+  </ul>
+
+  <pre>/tgwatch_set sandbox on
+/tgwatch_set sandbox_duration 24    # hours (default: 24)
+/tgwatch_unrestrict                 # reply to a user's message to lift sandbox early</pre>
+
+  <h3>Name Filter (FEAT-010)</h3>
+  <p>When enabled, the bot runs a new member's display name and username through the same word/regex filters on join. Accounts like <code>crypto_earn_fast</code> or <code>usdt_exchanger</code> are kicked before they post anything.</p>
+
+  <pre>/tgwatch_set name_filter on</pre>
+
+  <!-- ── Admin Authorization ── -->
+  <h2 id="admin-auth">Admin Authorization</h2>
+  <p>All management commands require the user to be a group admin. Non-admins who send commands are silently ignored — no error reply, no indication that the command was received. This avoids tipping off spammers.</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Level</th><th>Who</th><th>What they can do</th></tr>
+    <tr>
+      <td><span class="badge badge-admin">Admin</span></td>
+      <td>Any Telegram group admin</td>
+      <td>All filter and settings commands within their chat</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-super">Superadmin</span></td>
+      <td>User ID set in <code>SUPERADMIN_ID</code></td>
+      <td>Everything + <code>/tgwatch_copy</code> via DM with the bot</td>
+    </tr>
+  </table>
+  </div>
+
+  <p>Admin status is verified live via Telegram's <code>getChatMember</code> API on every command call — no caching, no stale permissions.</p>
+
+  <!-- ── Spam Log ── -->
+  <h2 id="spam-log">Spam Log</h2>
+  <p>Every filtered message is recorded in SQLite with full context: timestamp, user, matched rule, original message text, and action taken.</p>
+
+  <pre>/tgwatch_log            # last 10 entries
+/tgwatch_log 25         # last 25 entries (max 50)
+/tgwatch_log clear      # clear the log for this chat (asks YES)</pre>
+
+  <!-- ── Multi-Chat ── -->
+  <h2 id="multi-chat">Multi-Chat Support</h2>
+  <p>One bot instance manages multiple groups simultaneously. All data — word lists, regex patterns, settings, spam log — is completely isolated per <code>chat_id</code>. No data is shared between chats unless explicitly copied.</p>
+
+  <pre># Superadmin only, send this in a DM with the bot:
+/tgwatch_copy -100123456789 -100987654321</pre>
+
+  <p>The bot will ask for confirmation before overwriting. Existing data in the target chat is replaced, not merged.</p>
+
+  <!-- ── Commands ── -->
+  <h2 id="commands">Command Reference</h2>
+
+  <p>All commands use the <code>/tgwatch_</code> prefix to avoid conflicts with other bots in the same group.</p>
+
+  <h3>Word Filters</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
+    <tr><td><code>/tgwatch_add word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Add a blocked word or phrase</td></tr>
+    <tr><td><code>/tgwatch_add word</code> + lines</td><td><span class="badge badge-admin">Admin</span></td><td>Bulk add — one word per line after the command</td></tr>
+    <tr><td><code>/tgwatch_remove word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove a word</td></tr>
+    <tr><td><code>/tgwatch_list words</code></td><td><span class="badge badge-admin">Admin</span></td><td>List all blocked words</td></tr>
+    <tr><td><code>/tgwatch_clear words</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all words (asks YES)</td></tr>
+  </table>
+  </div>
+
+  <h3>Regex Filters</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
+    <tr><td><code>/tgwatch_add regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Add a RE2 regex pattern (<code>(?i)</code> applied automatically)</td></tr>
+    <tr><td><code>/tgwatch_remove regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove a pattern</td></tr>
+    <tr><td><code>/tgwatch_list regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>List all patterns</td></tr>
+    <tr><td><code>/tgwatch_clear regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all patterns (asks YES)</td></tr>
+  </table>
+  </div>
+
+  <h3>Spam Action Settings</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
+    <tr><td><code>/tgwatch_set action delete|mute|ban|kick</code></td><td><span class="badge badge-admin">Admin</span></td><td>Action when spam is detected (default: <code>ban</code>)</td></tr>
+    <tr><td><code>/tgwatch_set mute_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Mute duration (used when action=mute)</td></tr>
+  </table>
+  </div>
+
+  <h3>New Member Controls</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
+    <tr><td><code>/tgwatch_set verification on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td>Require new members to tap a button before posting</td></tr>
+    <tr><td><code>/tgwatch_set verification_timeout &lt;min&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Minutes to verify before auto-kick (default: 2)</td></tr>
+    <tr><td><code>/tgwatch_set sandbox on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td>Restrict new members to text-only for sandbox_duration</td></tr>
+    <tr><td><code>/tgwatch_set sandbox_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>How long sandbox lasts (default: 24h)</td></tr>
+    <tr><td><code>/tgwatch_set name_filter on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td>Kick new members whose name/username matches spam filters</td></tr>
+    <tr><td><code>/tgwatch_unrestrict</code></td><td><span class="badge badge-admin">Admin</span></td><td>Reply to a message to manually lift sandbox on that user</td></tr>
+  </table>
+  </div>
+
+  <h3>Management</h3>
+  <div class="table-wrap">
+  <table>
+    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
+    <tr><td><code>/tgwatch_show settings</code></td><td><span class="badge badge-admin">Admin</span></td><td>Show all current settings for this chat</td></tr>
+    <tr><td><code>/tgwatch_check &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Test text against filters without taking action</td></tr>
+    <tr><td><code>/tgwatch_log [n]</code></td><td><span class="badge badge-admin">Admin</span></td><td>Show last N spam entries (default 10, max 50)</td></tr>
+    <tr><td><code>/tgwatch_log clear</code></td><td><span class="badge badge-admin">Admin</span></td><td>Clear the spam log for this chat (asks YES)</td></tr>
+    <tr><td><code>/tgwatch_clean</code></td><td><span class="badge badge-admin">Admin</span></td><td>Delete all bot replies and admin commands from chat</td></tr>
+    <tr><td><code>/tgwatch_copy &lt;src_id&gt; &lt;dst_id&gt;</code></td><td><span class="badge badge-super">Superadmin</span></td><td>Copy all settings from one chat to another (use in DM)</td></tr>
+  </table>
+  </div>
+
+  <!-- ── Configuration ── -->
+  <h2 id="configuration">Configuration</h2>
+  <p>Configuration is loaded from a <code>.env</code> file in the working directory.</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Variable</th><th>Required</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>BOT_TOKEN</code></td><td>Yes</td><td>—</td><td>Telegram bot token from @BotFather</td></tr>
+    <tr><td><code>SUPERADMIN_ID</code></td><td>Yes</td><td>—</td><td>Numeric Telegram user ID of the owner (from @userinfobot)</td></tr>
+    <tr><td><code>DATABASE_PATH</code></td><td>No</td><td><code>./data/bot.db</code></td><td>Path to the SQLite database file</td></tr>
+    <tr><td><code>LOG_LEVEL</code></td><td>No</td><td><code>info</code></td><td><code>debug</code> / <code>info</code> / <code>warn</code> / <code>error</code></td></tr>
+  </table>
+  </div>
+
+  <h3>Per-Chat Settings</h3>
+  <p>These are stored in SQLite and changed via bot commands. Each chat has independent settings.</p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>Setting</th><th>Default</th><th>Command</th></tr>
+    <tr><td>Spam action</td><td><code>ban</code></td><td><code>/tgwatch_set action</code></td></tr>
+    <tr><td>Mute duration</td><td><code>24h</code></td><td><code>/tgwatch_set mute_duration</code></td></tr>
+    <tr><td>Verification</td><td><code>off</code></td><td><code>/tgwatch_set verification</code></td></tr>
+    <tr><td>Verification timeout</td><td><code>2 min</code></td><td><code>/tgwatch_set verification_timeout</code></td></tr>
+    <tr><td>Sandbox</td><td><code>off</code></td><td><code>/tgwatch_set sandbox</code></td></tr>
+    <tr><td>Sandbox duration</td><td><code>24h</code></td><td><code>/tgwatch_set sandbox_duration</code></td></tr>
+    <tr><td>Name filter</td><td><code>on</code></td><td><code>/tgwatch_set name_filter</code></td></tr>
+  </table>
+  </div>
+
+  <!-- ── Feature Index ── -->
+  <h2 id="feature-index">Feature Index</h2>
+  <p>Each feature has a tag in source code comments (e.g. <code>[FEAT-001]</code>). Search with <code>grep -r "FEAT-001" .</code></p>
+
+  <div class="table-wrap">
+  <table>
+    <tr><th>ID</th><th>Feature</th><th>Primary File</th></tr>
+    <tr><td><code>FEAT-001</code></td><td>Word/phrase filtering</td><td><code>internal/filter/words.go</code></td></tr>
+    <tr><td><code>FEAT-002</code></td><td>Regex filtering</td><td><code>internal/filter/regex.go</code></td></tr>
+    <tr><td><code>FEAT-003</code></td><td>Cyrillic/Latin normalization</td><td><code>internal/filter/normalize.go</code></td></tr>
+    <tr><td><code>FEAT-004</code></td><td>Spam actions</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-005</code></td><td>Admin authorization</td><td><code>internal/admin/admin.go</code></td></tr>
+    <tr><td><code>FEAT-006</code></td><td>Multi-chat support</td><td><code>internal/storage/storage.go</code></td></tr>
+    <tr><td><code>FEAT-007</code></td><td>Sandbox mode</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-008</code></td><td>/tgwatch_check command</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-009</code></td><td>Spam log</td><td><code>internal/storage/storage.go</code></td></tr>
+    <tr><td><code>FEAT-010</code></td><td>Name/username filter on join</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-011</code></td><td>Bulk word import</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-012</code></td><td>Copy settings between chats</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-013</code></td><td>/tgwatch_clean command</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-014</code></td><td>Spam notification in chat</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-015</code></td><td>Button verification for new members</td><td><code>internal/bot/handlers.go</code></td></tr>
+  </table>
+  </div>
+
+  <br><br>
+  <p style="color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); padding-top: 24px;">
+    tgwatchspam — self-hosted, open source, written in Go.
+    <a href="https://github.com/sqerison/tgwatchspam">github.com/sqerison/tgwatchspam</a>
+  </p>
+
+</main>
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('h2[id]');
+  const links = document.querySelectorAll('nav a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -75% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>
