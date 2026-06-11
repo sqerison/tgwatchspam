@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.1.0 — 2026-06-11
+
+- FEAT-016: Per-chat language switching — `/tgwatch_lang` shows inline buttons (🇬🇧 English / 🇺🇦 Українська); all bot messages, verification prompts, and notifications respect the selected language; stored per chat_id in SQLite
+
 ## v1.0.0 — 2026-06-08
 
 Initial implementation. All 12 planned features shipped.

@@ -23,8 +23,9 @@ type Settings struct {
 	SandboxEnabled       bool
 	SandboxHours         int
 	NameFilter           bool
-	VerificationEnabled  bool  // [FEAT-015]
-	VerificationTimeoutM int   // [FEAT-015]
+	VerificationEnabled  bool   // [FEAT-015]
+	VerificationTimeoutM int    // [FEAT-015]
+	Language             string // [FEAT-016]
 }
 
 // PendingVerification tracks a new member awaiting button verification. [FEAT-015]
@@ -136,10 +137,11 @@ func (s *Storage) migrate() error {
 		return err
 	}
 
-	// Add verification columns to existing settings tables (idempotent). [FEAT-015]
+	// Add new columns to existing settings tables (idempotent). [FEAT-015, FEAT-016]
 	for _, stmt := range []string{
 		`ALTER TABLE settings ADD COLUMN verification_enabled INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE settings ADD COLUMN verification_timeout_m INTEGER NOT NULL DEFAULT 2`,
+		`ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'en'`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
@@ -252,20 +254,44 @@ func (s *Storage) GetSettings(chatID int64) (*Settings, error) {
 		return nil, err
 	}
 	row := s.db.QueryRow(
-		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m
+		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m, language
 		 FROM settings WHERE chat_id = ?`,
 		chatID,
 	)
 	var st Settings
 	st.ChatID = chatID
 	var sandboxEnabled, nameFilter, verificationEnabled int
-	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM); err != nil {
+	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM, &st.Language); err != nil {
 		return nil, err
 	}
 	st.SandboxEnabled = sandboxEnabled != 0
 	st.NameFilter = nameFilter != 0
 	st.VerificationEnabled = verificationEnabled != 0
+	if st.Language == "" {
+		st.Language = "en"
+	}
 	return &st, nil
+}
+
+// GetLanguage returns the configured language for a chat, defaulting to "en". [FEAT-016]
+func (s *Storage) GetLanguage(chatID int64) string {
+	if err := s.ensureSettings(chatID); err != nil {
+		return "en"
+	}
+	var lang string
+	if err := s.db.QueryRow(`SELECT language FROM settings WHERE chat_id = ?`, chatID).Scan(&lang); err != nil || lang == "" {
+		return "en"
+	}
+	return lang
+}
+
+// SetLanguage persists the language preference for a chat. [FEAT-016]
+func (s *Storage) SetLanguage(chatID int64, lang string) error {
+	if err := s.ensureSettings(chatID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE settings SET language = ? WHERE chat_id = ?`, lang, chatID)
+	return err
 }
 
 func (s *Storage) SetAction(chatID int64, action string) error {

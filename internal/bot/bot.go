@@ -24,6 +24,7 @@ func registerCommands(bot *tgbotapi.BotAPI) {
 		{Command: "tgwatch_unrestrict", Description: "Lift sandbox/mute — reply to the user's message"},
 		{Command: "tgwatch_clean", Description: "Delete all bot replies and admin commands from this chat"},
 		{Command: "tgwatch_copy", Description: "Superadmin: copy settings between chats (use in DM)"},
+		{Command: "tgwatch_lang", Description: "Choose bot language for this chat (🇬🇧 English / 🇺🇦 Українська)"},
 		{Command: "tgwatch_help", Description: "Show all available commands"},
 	}
 	cfg := tgbotapi.SetMyCommandsConfig{Commands: commands}

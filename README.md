@@ -91,6 +91,7 @@ All commands use the `/tgwatch_` prefix to avoid conflicts with other bots in th
 | `/tgwatch_log [n]` | Admin | Show last N spam log entries (default 10, max 50) |
 | `/tgwatch_log clear` | Admin | Clear spam log (asks YES) |
 | `/tgwatch_clean` | Admin | Delete all bot replies and admin commands from chat |
+| `/tgwatch_lang` | Admin | Choose bot language for this chat (🇬🇧 English / 🇺🇦 Українська) |
 | `/tgwatch_copy <src_id> <dst_id>` | Superadmin | Copy all settings from one chat to another (DM only) |
 
 ## Built by AppRecode

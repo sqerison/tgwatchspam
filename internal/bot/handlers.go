@@ -13,6 +13,7 @@ import (
 	"github.com/sqerison/tgwatchspam/internal/admin"
 	"github.com/sqerison/tgwatchspam/internal/config"
 	"github.com/sqerison/tgwatchspam/internal/filter"
+	"github.com/sqerison/tgwatchspam/internal/i18n"
 	"github.com/sqerison/tgwatchspam/internal/storage"
 )
 
@@ -65,6 +66,21 @@ func newHandler(bot *tgbotapi.BotAPI, st *storage.Storage, flt *filter.Filter, a
 	return &handler{bot: bot, storage: st, filter: flt, admin: adm, cfg: cfg}
 }
 
+// lang returns the configured language for a chat.
+func (h *handler) lang(chatID int64) string {
+	return h.storage.GetLanguage(chatID)
+}
+
+// t returns the translation for key in the chat's language.
+func (h *handler) t(chatID int64, key string) string {
+	return i18n.T(h.lang(chatID), key)
+}
+
+// tf returns a formatted translation for key in the chat's language.
+func (h *handler) tf(chatID int64, key string, args ...interface{}) string {
+	return i18n.Tf(h.lang(chatID), key, args...)
+}
+
 func (h *handler) send(chatID int64, text string) {
 	msg := tgbotapi.NewMessage(chatID, text)
 	sent, err := h.bot.Send(msg)
@@ -92,16 +108,16 @@ func (h *handler) sendHTML(chatID int64, text string) {
 }
 
 // actionLabel returns a human-readable description of the action taken. [FEAT-014]
-func actionLabel(action string, muteDurationH int) string {
+func actionLabel(lang, action string, muteDurationH int) string {
 	switch action {
 	case "delete":
-		return "message removed, no further action"
+		return i18n.T(lang, "action_delete")
 	case "mute":
-		return fmt.Sprintf("muted for %d hour(s)", muteDurationH)
+		return i18n.Tf(lang, "action_mute", muteDurationH)
 	case "kick":
-		return "kicked from group (can rejoin via invite)"
+		return i18n.T(lang, "action_kick")
 	case "ban":
-		return "permanently banned"
+		return i18n.T(lang, "action_ban")
 	default:
 		return action
 	}
@@ -109,7 +125,7 @@ func actionLabel(action string, muteDurationH int) string {
 
 // handle is the top-level dispatcher for incoming updates.
 func (h *handler) handle(update tgbotapi.Update) {
-	// Inline button presses (verification) [FEAT-015]
+	// Inline button presses (verification + lang + confirm) [FEAT-015, FEAT-016]
 	if update.CallbackQuery != nil {
 		h.handleCallbackQuery(update.CallbackQuery)
 		return
@@ -141,7 +157,7 @@ func (h *handler) handle(update tgbotapi.Update) {
 		return
 	}
 
-	// YES confirmation for /clear and /copy [FEAT-001, FEAT-002, FEAT-009, FEAT-012]
+	// YES confirmation for /copy [FEAT-012]
 	if strings.ToUpper(strings.TrimSpace(msg.Text)) == "YES" && !msg.IsCommand() {
 		isAdmin, _ := h.admin.IsAdmin(msg.Chat.ID, msg.From.ID)
 		if isAdmin || h.admin.IsSuperAdmin(msg.From.ID) {
@@ -166,6 +182,7 @@ func (h *handler) handleNewMember(chatID int64, user *tgbotapi.User) {
 		log.Printf("get settings chatID=%d: %v", chatID, err)
 		return
 	}
+	lang := settings.Language
 
 	// Name/username filter — kick spammers before they can do anything [FEAT-010]
 	if settings.NameFilter {
@@ -191,16 +208,11 @@ func (h *handler) handleNewMember(chatID int64, user *tgbotapi.User) {
 			displayName = fmt.Sprintf("User #%d", user.ID)
 		}
 
-		msgText := fmt.Sprintf(
-			"<b>Welcome, %s!</b>\n\nPlease tap the button below to confirm you are a real person.\n"+
-				"You have <b>%d minute(s)</b> to verify — if you don't respond, you will be automatically removed.",
-			html.EscapeString(displayName),
-			settings.VerificationTimeoutM,
-		)
+		msgText := i18n.Tf(lang, "verify_message", html.EscapeString(displayName), settings.VerificationTimeoutM)
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData(
-					"I'm not a bot — let me in",
+					i18n.T(lang, "verify_button"),
 					fmt.Sprintf("verify:%d:%d", chatID, user.ID),
 				),
 			),
@@ -257,6 +269,7 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 		log.Printf("get settings: %v", err)
 		return
 	}
+	lang := settings.Language
 
 	h.deleteMessage(msg.Chat.ID, msg.MessageID)
 
@@ -302,15 +315,11 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 	} else if msg.From.FirstName != "" {
 		userRef = html.EscapeString(msg.From.FirstName)
 	}
-	h.sendHTML(msg.Chat.ID, fmt.Sprintf(
-		"<b>Spam removed</b>\n"+
-			"User: %s\n"+
-			"Matched %s: <code>%s</code>\n"+
-			"Action: %s",
+	h.sendHTML(msg.Chat.ID, i18n.Tf(lang, "spam_notification",
 		userRef,
 		result.Type,
 		html.EscapeString(result.Pattern),
-		actionLabel(actionTaken, settings.MuteDurationH),
+		actionLabel(lang, actionTaken, settings.MuteDurationH),
 	))
 }
 
@@ -380,6 +389,8 @@ func (h *handler) handleCommand(msg *tgbotapi.Message) {
 		h.handleLog(msg, args) // [FEAT-009]
 	case "clean":
 		h.handleClean(chatID) // [FEAT-013]
+	case "lang":
+		h.handleLang(msg) // [FEAT-016]
 	case "help":
 		h.handleHelp(chatID)
 	}
@@ -392,25 +403,26 @@ func (h *handler) handleConfirm(msg *tgbotapi.Message) {
 	if !ok {
 		return
 	}
+	lang := h.lang(chatID)
 
 	switch action {
 	case "clear words":
 		if err := h.storage.ClearWords(chatID); err != nil {
-			h.send(chatID, "Failed to clear the word list.")
+			h.send(chatID, i18n.T(lang, "clear_words_fail"))
 		} else {
-			h.send(chatID, "Word list cleared. No words are blocked in this chat.")
+			h.send(chatID, i18n.T(lang, "clear_words_ok_full"))
 		}
 	case "clear regex":
 		if err := h.storage.ClearRegexes(chatID); err != nil {
-			h.send(chatID, "Failed to clear regex patterns.")
+			h.send(chatID, i18n.T(lang, "clear_regex_fail"))
 		} else {
-			h.send(chatID, "Regex list cleared. No patterns are active in this chat.")
+			h.send(chatID, i18n.T(lang, "clear_regex_ok_full"))
 		}
 	case "clear log":
 		if err := h.storage.ClearSpamLog(chatID); err != nil {
-			h.send(chatID, "Failed to clear the spam log.")
+			h.send(chatID, i18n.T(lang, "clear_log_fail"))
 		} else {
-			h.send(chatID, "Spam log cleared.")
+			h.send(chatID, i18n.T(lang, "clear_log_ok"))
 		}
 	default:
 		if strings.HasPrefix(action, "copy:") {
@@ -421,20 +433,18 @@ func (h *handler) handleConfirm(msg *tgbotapi.Message) {
 			srcID, _ := strconv.ParseInt(parts[1], 10, 64)
 			dstID, _ := strconv.ParseInt(parts[2], 10, 64)
 			if err := h.storage.CopySettings(srcID, dstID); err != nil {
-				h.send(chatID, fmt.Sprintf("Copy failed: %v", err))
+				h.send(chatID, i18n.Tf(lang, "copy_result_fail", err))
 			} else {
-				h.sendHTML(chatID, fmt.Sprintf(
-					"Settings copied from <code>%d</code> to <code>%d</code>. The target chat now has the same words, patterns, and settings.",
-					srcID, dstID,
-				))
+				h.sendHTML(chatID, i18n.Tf(lang, "copy_result_ok", srcID, dstID))
 			}
 		}
 	}
 }
 
-// handleAdd handles /add word and /add regex [FEAT-001, FEAT-002, FEAT-011]
+// handleAdd handles /tgwatch_add word and /tgwatch_add regex [FEAT-001, FEAT-002, FEAT-011]
 func (h *handler) handleAdd(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
+	lang := h.lang(chatID)
 	// Split on first whitespace character (space OR newline) to get the sub-command.
 	// CommandArguments() returns the full args including newlines, so splitting on
 	// space alone fails for multiline messages like "/tgwatch_add word\nline1\nline2".
@@ -464,7 +474,7 @@ func (h *handler) handleAdd(msg *tgbotapi.Message, args string) {
 			}
 		}
 		if len(words) == 0 {
-			h.sendHTML(chatID, "Usage:\n<code>/add word bitcoin</code>\nor multiline:\n<code>/add word\nbitcoin\nusdt\nкрипта</code>")
+			h.sendHTML(chatID, i18n.T(lang, "add_word_usage"))
 			return
 		}
 		// Normalize at insert time so matching is consistent [FEAT-003]
@@ -473,47 +483,48 @@ func (h *handler) handleAdd(msg *tgbotapi.Message, args string) {
 		}
 		added, skipped, err := h.storage.AddWords(chatID, words)
 		if err != nil {
-			h.send(chatID, "Failed to add words.")
+			h.send(chatID, i18n.T(lang, "add_word_fail"))
 			return
 		}
 		if skipped > 0 {
-			h.sendHTML(chatID, fmt.Sprintf("Added <b>%d</b> word(s). <b>%d</b> already existed and were skipped.", added, skipped))
+			h.sendHTML(chatID, i18n.Tf(lang, "add_word_ok_skipped", added, skipped))
 		} else {
-			h.sendHTML(chatID, fmt.Sprintf("Added <b>%d</b> word(s).", added))
+			h.sendHTML(chatID, i18n.Tf(lang, "add_word_ok", added))
 		}
 
 	case "regex":
 		if strings.TrimSpace(rest) == "" {
-			h.sendHTML(chatID, "Usage: <code>/tgwatch_add regex &lt;pattern&gt;</code>")
+			h.sendHTML(chatID, i18n.T(lang, "add_regex_usage"))
 			return
 		}
 		pattern := strings.TrimSpace(rest)
 		if _, err := filter.CompileRegex(pattern); err != nil {
-			h.sendHTML(chatID, fmt.Sprintf("Invalid regex pattern:\n<code>%s</code>", html.EscapeString(err.Error())))
+			h.sendHTML(chatID, i18n.Tf(lang, "add_regex_invalid", html.EscapeString(err.Error())))
 			return
 		}
 		added, err := h.storage.AddRegex(chatID, pattern)
 		if err != nil {
-			h.send(chatID, "Failed to add regex pattern.")
+			h.send(chatID, i18n.T(lang, "add_regex_fail"))
 			return
 		}
 		if added {
-			h.sendHTML(chatID, fmt.Sprintf("Regex pattern added:\n<code>%s</code>", html.EscapeString(pattern)))
+			h.sendHTML(chatID, i18n.Tf(lang, "add_regex_ok", html.EscapeString(pattern)))
 		} else {
-			h.send(chatID, "That pattern is already in the list.")
+			h.send(chatID, i18n.T(lang, "add_regex_exists"))
 		}
 
 	default:
-		h.send(chatID, "Usage: /tgwatch_add word <text>  or  /tgwatch_add regex <pattern>")
+		h.sendHTML(chatID, i18n.T(lang, "add_usage"))
 	}
 }
 
-// handleRemove handles /remove word and /remove regex
+// handleRemove handles /tgwatch_remove word and /tgwatch_remove regex
 func (h *handler) handleRemove(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
+	lang := h.lang(chatID)
 	parts := strings.SplitN(args, " ", 2)
 	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
-		h.send(chatID, "Usage: /tgwatch_remove word <text> or /tgwatch_remove regex <pattern>")
+		h.sendHTML(chatID, i18n.T(lang, "remove_usage"))
 		return
 	}
 	subCmd := strings.ToLower(strings.TrimSpace(parts[0]))
@@ -523,106 +534,103 @@ func (h *handler) handleRemove(msg *tgbotapi.Message, args string) {
 	case "word":
 		removed, err := h.storage.RemoveWord(chatID, filter.Normalize(value))
 		if err != nil {
-			h.send(chatID, "Failed to remove word.")
+			h.send(chatID, i18n.T(lang, "remove_word_fail"))
 			return
 		}
 		if removed {
-			h.sendHTML(chatID, fmt.Sprintf("Removed word: <code>%s</code>", html.EscapeString(value)))
+			h.sendHTML(chatID, i18n.Tf(lang, "remove_word_ok", html.EscapeString(value)))
 		} else {
-			h.sendHTML(chatID, fmt.Sprintf("Word not found: <code>%s</code>", html.EscapeString(value)))
+			h.sendHTML(chatID, i18n.Tf(lang, "remove_word_notfound", html.EscapeString(value)))
 		}
 	case "regex":
 		removed, err := h.storage.RemoveRegex(chatID, value)
 		if err != nil {
-			h.send(chatID, "Failed to remove regex pattern.")
+			h.send(chatID, i18n.T(lang, "remove_regex_fail"))
 			return
 		}
 		if removed {
-			h.sendHTML(chatID, fmt.Sprintf("Removed pattern: <code>%s</code>", html.EscapeString(value)))
+			h.sendHTML(chatID, i18n.Tf(lang, "remove_regex_ok", html.EscapeString(value)))
 		} else {
-			h.sendHTML(chatID, fmt.Sprintf("Pattern not found: <code>%s</code>", html.EscapeString(value)))
+			h.sendHTML(chatID, i18n.Tf(lang, "remove_regex_notfound", html.EscapeString(value)))
 		}
 	default:
-		h.send(chatID, "Usage: /remove word <text>  or  /remove regex <pattern>")
+		h.sendHTML(chatID, i18n.T(lang, "remove_usage_sub"))
 	}
 }
 
-// handleList handles /list words and /list regex
+// handleList handles /tgwatch_list words and /tgwatch_list regex
 func (h *handler) handleList(chatID int64, args string) {
+	lang := h.lang(chatID)
 	switch strings.TrimSpace(strings.ToLower(args)) {
 	case "words":
 		words, err := h.storage.GetWords(chatID)
 		if err != nil {
-			h.send(chatID, "Failed to fetch the word list.")
+			h.send(chatID, i18n.T(lang, "list_words_fail"))
 			return
 		}
 		if len(words) == 0 {
-			h.send(chatID, "No blocked words yet. Use /tgwatch_add word to add some.")
+			h.send(chatID, i18n.T(lang, "list_words_empty"))
 			return
 		}
 		escaped := make([]string, len(words))
 		for i, w := range words {
 			escaped[i] = html.EscapeString(w)
 		}
-		h.sendHTML(chatID, fmt.Sprintf(
-			"<b>Blocked words</b> (%d):\n<code>%s</code>",
-			len(words), strings.Join(escaped, "\n"),
-		))
+		h.sendHTML(chatID, i18n.Tf(lang, "list_words_header", len(words), strings.Join(escaped, "\n")))
 	case "regex":
 		patterns, err := h.storage.GetRegexes(chatID)
 		if err != nil {
-			h.send(chatID, "Failed to fetch regex patterns.")
+			h.send(chatID, i18n.T(lang, "list_regex_fail"))
 			return
 		}
 		if len(patterns) == 0 {
-			h.send(chatID, "No regex patterns yet. Use /tgwatch_add regex to add some.")
+			h.send(chatID, i18n.T(lang, "list_regex_empty"))
 			return
 		}
 		lines := make([]string, len(patterns))
 		for i, p := range patterns {
 			lines[i] = fmt.Sprintf("%d. <code>%s</code>", i+1, html.EscapeString(p))
 		}
-		h.sendHTML(chatID, fmt.Sprintf(
-			"<b>Regex patterns</b> (%d):\n%s",
-			len(patterns), strings.Join(lines, "\n"),
-		))
+		h.sendHTML(chatID, i18n.Tf(lang, "list_regex_header", len(patterns), strings.Join(lines, "\n")))
 	default:
-		h.send(chatID, "Usage: /tgwatch_list words  or  /tgwatch_list regex")
+		h.send(chatID, i18n.T(lang, "list_usage"))
 	}
 }
 
-// handleClear handles /clear words and /clear regex (with inline button confirmation)
+// handleClear handles /tgwatch_clear words and /tgwatch_clear regex (with inline button confirmation)
 func (h *handler) handleClear(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
 	userID := msg.From.ID
+	lang := h.lang(chatID)
 	switch strings.TrimSpace(strings.ToLower(args)) {
 	case "words":
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Yes, clear all words", fmt.Sprintf("confirm:words:%d:%d", chatID, userID)),
-				tgbotapi.NewInlineKeyboardButtonData("Cancel", fmt.Sprintf("confirm:cancel:%d:%d", chatID, userID)),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_clear_words"), fmt.Sprintf("confirm:words:%d:%d", chatID, userID)),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_cancel"), fmt.Sprintf("confirm:cancel:%d:%d", chatID, userID)),
 			),
 		)
-		h.sendWithKeyboard(chatID, "This will remove <b>all blocked words</b> for this chat.", keyboard)
+		h.sendWithKeyboard(chatID, i18n.T(lang, "clear_words_prompt"), keyboard)
 	case "regex":
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Yes, clear all patterns", fmt.Sprintf("confirm:regex:%d:%d", chatID, userID)),
-				tgbotapi.NewInlineKeyboardButtonData("Cancel", fmt.Sprintf("confirm:cancel:%d:%d", chatID, userID)),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_clear_regex"), fmt.Sprintf("confirm:regex:%d:%d", chatID, userID)),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_cancel"), fmt.Sprintf("confirm:cancel:%d:%d", chatID, userID)),
 			),
 		)
-		h.sendWithKeyboard(chatID, "This will remove <b>all regex patterns</b> for this chat.", keyboard)
+		h.sendWithKeyboard(chatID, i18n.T(lang, "clear_regex_prompt"), keyboard)
 	default:
-		h.send(chatID, "Usage: /tgwatch_clear words  or  /tgwatch_clear regex")
+		h.send(chatID, i18n.T(lang, "clear_usage"))
 	}
 }
 
-// handleSet handles /set <key> <value>
+// handleSet handles /tgwatch_set <key> <value>
 func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
+	lang := h.lang(chatID)
 	parts := strings.SplitN(args, " ", 2)
 	if len(parts) < 2 {
-		h.send(chatID, "Usage: /tgwatch_set <action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout> <value>")
+		h.sendHTML(chatID, i18n.T(lang, "set_usage"))
 		return
 	}
 	key := strings.ToLower(strings.TrimSpace(parts[0]))
@@ -632,182 +640,178 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	case "action":
 		valid := map[string]bool{"delete": true, "mute": true, "ban": true, "kick": true}
 		if !valid[val] {
-			h.sendHTML(chatID, "Valid actions:\n<code>delete</code> — remove message only\n<code>mute</code> — remove + mute for N hours\n<code>kick</code> — remove + kick (can rejoin)\n<code>ban</code> — remove + permanent ban")
+			h.sendHTML(chatID, i18n.T(lang, "set_action_valid"))
 			return
 		}
 		if err := h.storage.SetAction(chatID, val); err != nil {
-			h.send(chatID, "Failed to update action.")
+			h.send(chatID, i18n.T(lang, "set_action_fail"))
 			return
 		}
-		h.sendHTML(chatID, fmt.Sprintf("Spam action set to <b>%s</b>.", html.EscapeString(val)))
+		h.sendHTML(chatID, i18n.Tf(lang, "set_action_ok", html.EscapeString(val)))
 
 	case "mute_duration":
 		n, err := strconv.Atoi(val)
 		if err != nil || n < 1 {
-			h.send(chatID, "Mute duration must be a positive whole number of hours.")
+			h.send(chatID, i18n.T(lang, "set_mute_invalid"))
 			return
 		}
 		if err := h.storage.SetMuteDuration(chatID, n); err != nil {
-			h.send(chatID, "Failed to update mute duration.")
+			h.send(chatID, i18n.T(lang, "set_mute_fail"))
 			return
 		}
-		h.sendHTML(chatID, fmt.Sprintf("Mute duration set to <b>%d hour(s)</b>.", n))
+		h.sendHTML(chatID, i18n.Tf(lang, "set_mute_ok", n))
 
 	case "sandbox":
 		switch strings.ToLower(val) {
 		case "on":
 			if err := h.storage.SetSandbox(chatID, true); err != nil {
-				h.send(chatID, "Failed to enable sandbox.")
+				h.send(chatID, i18n.T(lang, "set_sandbox_enable_fail"))
 				return
 			}
-			h.send(chatID, "Sandbox enabled. New members will be restricted until the sandbox period expires.")
+			h.send(chatID, i18n.T(lang, "set_sandbox_enabled"))
 		case "off":
 			if err := h.storage.SetSandbox(chatID, false); err != nil {
-				h.send(chatID, "Failed to disable sandbox.")
+				h.send(chatID, i18n.T(lang, "set_sandbox_disable_fail"))
 				return
 			}
-			h.send(chatID, "Sandbox disabled. New members can post immediately.")
+			h.send(chatID, i18n.T(lang, "set_sandbox_disabled"))
 		default:
-			h.send(chatID, "Usage: /tgwatch_set sandbox on|off")
+			h.send(chatID, i18n.T(lang, "set_sandbox_usage"))
 		}
 
 	case "sandbox_duration":
 		n, err := strconv.Atoi(val)
 		if err != nil || n < 1 {
-			h.send(chatID, "Sandbox duration must be a positive whole number of hours.")
+			h.send(chatID, i18n.T(lang, "set_sandbox_dur_invalid"))
 			return
 		}
 		if err := h.storage.SetSandboxDuration(chatID, n); err != nil {
-			h.send(chatID, "Failed to update sandbox duration.")
+			h.send(chatID, i18n.T(lang, "set_sandbox_dur_fail"))
 			return
 		}
-		h.sendHTML(chatID, fmt.Sprintf("Sandbox duration set to <b>%d hour(s)</b>.", n))
+		h.sendHTML(chatID, i18n.Tf(lang, "set_sandbox_dur_ok", n))
 
 	case "name_filter":
 		switch strings.ToLower(val) {
 		case "on":
 			if err := h.storage.SetNameFilter(chatID, true); err != nil {
-				h.send(chatID, "Failed to enable name filter.")
+				h.send(chatID, i18n.T(lang, "set_nf_enable_fail"))
 				return
 			}
-			h.send(chatID, "Name filter enabled. New members with spammy names will be kicked on join.")
+			h.send(chatID, i18n.T(lang, "set_nf_enabled"))
 		case "off":
 			if err := h.storage.SetNameFilter(chatID, false); err != nil {
-				h.send(chatID, "Failed to disable name filter.")
+				h.send(chatID, i18n.T(lang, "set_nf_disable_fail"))
 				return
 			}
-			h.send(chatID, "Name filter disabled.")
+			h.send(chatID, i18n.T(lang, "set_nf_disabled"))
 		default:
-			h.send(chatID, "Usage: /tgwatch_set name_filter on|off")
+			h.send(chatID, i18n.T(lang, "set_nf_usage"))
 		}
 
 	case "verification":
 		switch strings.ToLower(val) {
 		case "on":
 			if err := h.storage.SetVerification(chatID, true); err != nil {
-				h.send(chatID, "Failed to enable verification.")
+				h.send(chatID, i18n.T(lang, "set_verif_enable_fail"))
 				return
 			}
-			h.send(chatID, "Verification enabled. New members must tap a button before they can post.")
+			h.send(chatID, i18n.T(lang, "set_verif_enabled"))
 		case "off":
 			if err := h.storage.SetVerification(chatID, false); err != nil {
-				h.send(chatID, "Failed to disable verification.")
+				h.send(chatID, i18n.T(lang, "set_verif_disable_fail"))
 				return
 			}
-			h.send(chatID, "Verification disabled. New members can post immediately (subject to sandbox settings).")
+			h.send(chatID, i18n.T(lang, "set_verif_disabled"))
 		default:
-			h.send(chatID, "Usage: /tgwatch_set verification on|off")
+			h.send(chatID, i18n.T(lang, "set_verif_usage"))
 		}
 
 	case "verification_timeout":
 		n, err := strconv.Atoi(val)
 		if err != nil || n < 1 {
-			h.send(chatID, "Verification timeout must be a positive whole number of minutes.")
+			h.send(chatID, i18n.T(lang, "set_verif_to_invalid"))
 			return
 		}
 		if err := h.storage.SetVerificationTimeout(chatID, n); err != nil {
-			h.send(chatID, "Failed to update verification timeout.")
+			h.send(chatID, i18n.T(lang, "set_verif_to_fail"))
 			return
 		}
-		h.sendHTML(chatID, fmt.Sprintf("Verification timeout set to <b>%d minute(s)</b>.", n))
+		h.sendHTML(chatID, i18n.Tf(lang, "set_verif_to_ok", n))
 
 	default:
-		h.sendHTML(chatID, "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>")
+		h.sendHTML(chatID, i18n.T(lang, "set_unknown"))
 	}
 }
 
-// handleShowSettings handles /show settings
+// handleShowSettings handles /tgwatch_show settings
 func (h *handler) handleShowSettings(chatID int64) {
 	s, err := h.storage.GetSettings(chatID)
 	if err != nil {
-		h.send(chatID, "Error fetching settings.")
+		h.send(chatID, i18n.T(i18n.EN, "show_settings_fail"))
 		return
 	}
-	sandbox := "off"
+	lang := s.Language
+	on := i18n.T(lang, "settings_on")
+	off := i18n.T(lang, "settings_off")
+	sandbox := off
 	if s.SandboxEnabled {
-		sandbox = "on"
+		sandbox = on
 	}
-	nameFilter := "off"
+	nameFilter := off
 	if s.NameFilter {
-		nameFilter = "on"
+		nameFilter = on
 	}
-	verification := "off"
+	verification := off
 	if s.VerificationEnabled {
-		verification = "on"
+		verification = on
 	}
-	h.sendHTML(chatID, fmt.Sprintf(
-		"<b>Settings for this chat</b>\n\n"+
-			"Spam action:           <b>%s</b>\n"+
-			"Mute duration:         <b>%dh</b>\n"+
-			"Name filter:           <b>%s</b>\n"+
-			"Verification:          <b>%s</b>\n"+
-			"Verification timeout:  <b>%dm</b>\n"+
-			"Sandbox:               <b>%s</b>\n"+
-			"Sandbox duration:      <b>%dh</b>",
+	langLabel := i18n.T(lang, "settings_lang_en")
+	if lang == i18n.UK {
+		langLabel = i18n.T(lang, "settings_lang_uk")
+	}
+	h.sendHTML(chatID, i18n.Tf(lang, "show_settings",
 		s.Action, s.MuteDurationH, nameFilter,
 		verification, s.VerificationTimeoutM,
-		sandbox, s.SandboxHours,
+		sandbox, s.SandboxHours, langLabel,
 	))
 }
 
 // handleCheck tests a message against filters without taking action. [FEAT-008]
 func (h *handler) handleCheck(chatID int64, text string) {
+	lang := h.lang(chatID)
 	if strings.TrimSpace(text) == "" {
-		h.send(chatID, "Usage: /tgwatch_check <message text>")
+		h.sendHTML(chatID, i18n.T(lang, "check_usage"))
 		return
 	}
 	result, err := h.filter.Check(chatID, text)
 	if err != nil {
-		h.send(chatID, "Error running check.")
+		h.send(chatID, i18n.T(lang, "check_fail"))
 		return
 	}
 	settings, err := h.storage.GetSettings(chatID)
 	if err != nil {
-		h.send(chatID, "Error fetching settings.")
+		h.send(chatID, i18n.T(lang, "check_cfg_fail"))
 		return
 	}
 	if result == nil {
-		h.send(chatID, "No match — this message would pass through.")
+		h.send(chatID, i18n.T(lang, "check_no_match"))
 		return
 	}
-	h.sendHTML(chatID, fmt.Sprintf(
-		"<b>Match found</b>\n"+
-			"Type:    <b>%s</b>\n"+
-			"Pattern: <code>%s</code>\n"+
-			"Normalized input: <code>%s</code>\n"+
-			"Would action: <b>%s</b>",
+	h.sendHTML(chatID, i18n.Tf(lang, "check_match",
 		result.Type,
 		html.EscapeString(result.Pattern),
 		html.EscapeString(filter.Normalize(text)),
-		actionLabel(settings.Action, settings.MuteDurationH),
+		actionLabel(lang, settings.Action, settings.MuteDurationH),
 	))
 }
 
 // handleUnrestrict manually lifts sandbox/mute on a user (reply-to required). [FEAT-007]
 func (h *handler) handleUnrestrict(msg *tgbotapi.Message) {
 	chatID := msg.Chat.ID
+	lang := h.lang(chatID)
 	if msg.ReplyToMessage == nil || msg.ReplyToMessage.From == nil {
-		h.send(chatID, "Reply to the user's message to unrestrict them.")
+		h.send(chatID, i18n.T(lang, "unrestrict_usage"))
 		return
 	}
 	userID := msg.ReplyToMessage.From.ID
@@ -815,22 +819,23 @@ func (h *handler) handleUnrestrict(msg *tgbotapi.Message) {
 		log.Printf("remove pending unrestrict: %v", err)
 	}
 	h.unrestrictUser(chatID, userID)
-	h.sendHTML(chatID, fmt.Sprintf("User <b>#%d</b> has been unrestricted and can post again.", userID))
+	h.sendHTML(chatID, i18n.Tf(lang, "unrestrict_ok", userID))
 }
 
-// handleLog handles /log, /log <n>, /log clear [FEAT-009]
+// handleLog handles /tgwatch_log, /tgwatch_log <n>, /tgwatch_log clear [FEAT-009]
 func (h *handler) handleLog(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
+	lang := h.lang(chatID)
 	args = strings.TrimSpace(args)
 
 	if strings.ToLower(args) == "clear" {
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Yes, clear log", fmt.Sprintf("confirm:log:%d:%d", chatID, msg.From.ID)),
-				tgbotapi.NewInlineKeyboardButtonData("Cancel", fmt.Sprintf("confirm:cancel:%d:%d", chatID, msg.From.ID)),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_clear_log"), fmt.Sprintf("confirm:log:%d:%d", chatID, msg.From.ID)),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_cancel"), fmt.Sprintf("confirm:cancel:%d:%d", chatID, msg.From.ID)),
 			),
 		)
-		h.sendWithKeyboard(chatID, "This will clear the <b>entire spam log</b> for this chat.", keyboard)
+		h.sendWithKeyboard(chatID, i18n.T(lang, "log_clear_prompt"), keyboard)
 		return
 	}
 
@@ -838,7 +843,7 @@ func (h *handler) handleLog(msg *tgbotapi.Message, args string) {
 	if args != "" {
 		n, err := strconv.Atoi(args)
 		if err != nil || n < 1 {
-			h.send(chatID, "Usage: /tgwatch_log [n|clear]")
+			h.send(chatID, i18n.T(lang, "log_usage"))
 			return
 		}
 		if n > 50 {
@@ -849,11 +854,11 @@ func (h *handler) handleLog(msg *tgbotapi.Message, args string) {
 
 	entries, err := h.storage.GetSpamLog(chatID, limit)
 	if err != nil {
-		h.send(chatID, "Error fetching spam log.")
+		h.send(chatID, i18n.T(lang, "log_fail"))
 		return
 	}
 	if len(entries) == 0 {
-		h.send(chatID, "Spam log is empty.")
+		h.send(chatID, i18n.T(lang, "log_empty"))
 		return
 	}
 
@@ -867,30 +872,46 @@ func (h *handler) handleLog(msg *tgbotapi.Message, args string) {
 		lines[i] = fmt.Sprintf("<code>%s</code> %s — %s — <b>%s</b>",
 			ts, user, html.EscapeString(e.MatchedRule), html.EscapeString(e.ActionTaken))
 	}
-	h.sendHTML(chatID, fmt.Sprintf("<b>Last %d spam entries:</b>\n\n%s", len(entries), strings.Join(lines, "\n")))
+	h.sendHTML(chatID, i18n.Tf(lang, "log_header", len(entries), strings.Join(lines, "\n")))
 }
 
-// handleCopy handles /copy <src_chat_id> <dst_chat_id> (superadmin only). [FEAT-012]
+// handleCopy handles /tgwatch_copy <src_chat_id> <dst_chat_id> (superadmin only). [FEAT-012]
 func (h *handler) handleCopy(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
+	lang := h.lang(chatID)
 	parts := strings.Fields(args)
 	if len(parts) != 2 {
-		h.send(chatID, "Usage: /tgwatch_copy <source_chat_id> <target_chat_id>")
+		h.sendHTML(chatID, i18n.T(lang, "copy_usage"))
 		return
 	}
 	srcID, err1 := strconv.ParseInt(parts[0], 10, 64)
 	dstID, err2 := strconv.ParseInt(parts[1], 10, 64)
 	if err1 != nil || err2 != nil {
-		h.send(chatID, "Chat IDs must be numeric.")
+		h.send(chatID, i18n.T(lang, "copy_invalid_ids"))
 		return
 	}
 	h.confirms.set(chatID, msg.From.ID, fmt.Sprintf("copy:%d:%d", srcID, dstID))
-	h.sendHTML(chatID, fmt.Sprintf(
-		"Copy all settings from <code>%d</code> to <code>%d</code>?\n"+
-			"<i>This will overwrite all words, patterns, and settings in the target chat.</i>\n"+
-			"Reply <b>YES</b> to confirm (60s timeout).",
-		srcID, dstID,
-	))
+	h.sendHTML(chatID, i18n.Tf(lang, "copy_prompt", srcID, dstID))
+}
+
+// handleLang shows the language selection keyboard. [FEAT-016]
+func (h *handler) handleLang(msg *tgbotapi.Message) {
+	chatID := msg.Chat.ID
+	userID := msg.From.ID
+	lang := h.lang(chatID)
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData(
+				i18n.T(lang, "btn_lang_en"),
+				fmt.Sprintf("setlang:en:%d:%d", chatID, userID),
+			),
+			tgbotapi.NewInlineKeyboardButtonData(
+				i18n.T(lang, "btn_lang_uk"),
+				fmt.Sprintf("setlang:uk:%d:%d", chatID, userID),
+			),
+		),
+	)
+	h.sendWithKeyboard(chatID, i18n.T(lang, "lang_prompt"), keyboard)
 }
 
 // handleConfirmCallback handles inline button confirmations for clear/log actions.
@@ -905,9 +926,10 @@ func (h *handler) handleConfirmCallback(query *tgbotapi.CallbackQuery) {
 	if err1 != nil || err2 != nil {
 		return
 	}
+	lang := h.lang(chatID)
 	// Only the admin who triggered the command can confirm
 	if query.From.ID != userID {
-		h.bot.Request(tgbotapi.NewCallback(query.ID, "Only the admin who ran the command can confirm."))
+		h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(lang, "confirm_admin_only")))
 		return
 	}
 	// Delete the confirmation message
@@ -915,38 +937,73 @@ func (h *handler) handleConfirmCallback(query *tgbotapi.CallbackQuery) {
 		h.bot.Request(tgbotapi.NewDeleteMessage(chatID, query.Message.MessageID))
 	}
 	if action == "cancel" {
-		h.bot.Request(tgbotapi.NewCallback(query.ID, "Cancelled."))
+		h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(lang, "confirm_cancelled")))
 		return
 	}
 	h.bot.Request(tgbotapi.NewCallback(query.ID, ""))
 	switch action {
 	case "words":
 		if err := h.storage.ClearWords(chatID); err != nil {
-			h.send(chatID, "Failed to clear the word list.")
+			h.send(chatID, i18n.T(lang, "clear_words_fail"))
 		} else {
-			h.send(chatID, "Word list cleared.")
+			h.send(chatID, i18n.T(lang, "clear_words_ok"))
 		}
 	case "regex":
 		if err := h.storage.ClearRegexes(chatID); err != nil {
-			h.send(chatID, "Failed to clear regex patterns.")
+			h.send(chatID, i18n.T(lang, "clear_regex_fail"))
 		} else {
-			h.send(chatID, "Regex list cleared.")
+			h.send(chatID, i18n.T(lang, "clear_regex_ok"))
 		}
 	case "log":
 		if err := h.storage.ClearSpamLog(chatID); err != nil {
-			h.send(chatID, "Failed to clear the spam log.")
+			h.send(chatID, i18n.T(lang, "clear_log_fail"))
 		} else {
-			h.send(chatID, "Spam log cleared.")
+			h.send(chatID, i18n.T(lang, "clear_log_ok"))
 		}
 	}
 }
 
-// handleCallbackQuery processes inline button presses. [FEAT-015]
+// handleCallbackQuery processes inline button presses. [FEAT-015, FEAT-016]
 func (h *handler) handleCallbackQuery(query *tgbotapi.CallbackQuery) {
 	if strings.HasPrefix(query.Data, "confirm:") {
 		h.handleConfirmCallback(query)
 		return
 	}
+
+	// Language selection [FEAT-016]
+	if strings.HasPrefix(query.Data, "setlang:") {
+		parts := strings.SplitN(query.Data, ":", 4)
+		if len(parts) != 4 {
+			return
+		}
+		newLang := parts[1]
+		chatID, err1 := strconv.ParseInt(parts[2], 10, 64)
+		userID, err2 := strconv.ParseInt(parts[3], 10, 64)
+		if err1 != nil || err2 != nil {
+			return
+		}
+		// Only the admin who ran /lang can confirm
+		if query.From.ID != userID {
+			h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(h.lang(chatID), "confirm_admin_only")))
+			return
+		}
+		if err := h.storage.SetLanguage(chatID, newLang); err != nil {
+			h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(newLang, "lang_fail")))
+			return
+		}
+		// Delete the selection message
+		if query.Message != nil {
+			h.bot.Request(tgbotapi.NewDeleteMessage(chatID, query.Message.MessageID))
+		}
+		h.bot.Request(tgbotapi.NewCallback(query.ID, ""))
+		key := "lang_set_en"
+		if newLang == i18n.UK {
+			key = "lang_set_uk"
+		}
+		h.sendHTML(chatID, i18n.T(newLang, key))
+		return
+	}
+
 	if !strings.HasPrefix(query.Data, "verify:") {
 		return
 	}
@@ -959,15 +1016,16 @@ func (h *handler) handleCallbackQuery(query *tgbotapi.CallbackQuery) {
 	if err1 != nil || err2 != nil {
 		return
 	}
+	lang := h.lang(chatID)
 
 	// Only the user who joined can click their own button
 	if query.From.ID != expectedUserID {
-		h.bot.Request(tgbotapi.NewCallback(query.ID, "This button is not for you."))
+		h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(lang, "verify_popup_invalid")))
 		return
 	}
 
 	// Answer the popup immediately so the button stops spinning
-	h.bot.Request(tgbotapi.NewCallback(query.ID, "Verified! Welcome to the group."))
+	h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(lang, "verify_popup_ok")))
 
 	// Remove pending record and get the verification message ID to delete it
 	msgID, err := h.storage.RemovePendingVerification(chatID, expectedUserID)
@@ -1055,39 +1113,7 @@ func (h *handler) handleClean(chatID int64) {
 
 // handleHelp shows a quick command reference.
 func (h *handler) handleHelp(chatID int64) {
-	h.sendHTML(chatID, `<b>tgwatchspam commands</b>
-
-<b>Filters</b>
-/tgwatch_add word &lt;text&gt; — add blocked word/phrase
-/tgwatch_add regex &lt;pattern&gt; — add RE2 regex pattern
-/tgwatch_remove word &lt;text&gt; — remove word
-/tgwatch_remove regex &lt;pattern&gt; — remove pattern
-/tgwatch_list words — list blocked words
-/tgwatch_list regex — list regex patterns
-/tgwatch_clear words — remove all words
-/tgwatch_clear regex — remove all patterns
-
-<b>Actions</b>
-/tgwatch_set action delete — remove message only
-/tgwatch_set action mute — remove + mute for N hours
-/tgwatch_set action kick — remove + kick (can rejoin)
-/tgwatch_set action ban — remove + permanent ban
-/tgwatch_set mute_duration &lt;hours&gt; — mute duration (default 24h)
-
-<b>New member controls</b>
-/tgwatch_set sandbox on|off
-/tgwatch_set sandbox_duration &lt;hours&gt;
-/tgwatch_set verification on|off
-/tgwatch_set verification_timeout &lt;minutes&gt;
-/tgwatch_set name_filter on|off
-/tgwatch_unrestrict — reply to lift sandbox on a user
-
-<b>Management</b>
-/tgwatch_show settings — show current config
-/tgwatch_check &lt;text&gt; — test text against filters
-/tgwatch_log [n] — show last N spam entries
-/tgwatch_log clear — clear spam log
-/tgwatch_clean — delete all bot replies and admin commands`)
+	h.sendHTML(chatID, i18n.T(h.lang(chatID), "help"))
 }
 
 // --- Telegram API action helpers ---
@@ -1108,16 +1134,15 @@ func (h *handler) sendWithKeyboard(chatID int64, text string, keyboard tgbotapi.
 }
 
 // sandboxRestrictUser applies text-only restriction: regular messages allowed, no media/stickers/link previews. [FEAT-015]
-// Used for sandbox after verification, or sandbox-only mode (no verification).
 func (h *handler) sandboxRestrictUser(chatID, userID int64) {
 	cfg := tgbotapi.RestrictChatMemberConfig{
 		ChatMemberConfig: tgbotapi.ChatMemberConfig{ChatID: chatID, UserID: userID},
 		UntilDate:        0,
 		Permissions: &tgbotapi.ChatPermissions{
-			CanSendMessages:       true,  // text messages allowed
-			CanSendMediaMessages:  false, // no photos, videos, audio
-			CanSendOtherMessages:  false, // no stickers, GIFs
-			CanAddWebPagePreviews: false, // no link previews
+			CanSendMessages:       true,
+			CanSendMediaMessages:  false,
+			CanSendOtherMessages:  false,
+			CanAddWebPagePreviews: false,
 		},
 	}
 	if _, err := h.bot.Request(cfg); err != nil {

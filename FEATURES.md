@@ -20,3 +20,4 @@ Search code with: `grep -r "FEAT-XXX" .`
 | FEAT-013 | Done   | internal/bot/handlers.go:handleClean, storage.go:TrackMessage | /clean — delete all bot replies and admin commands |
 | FEAT-014 | Done   | internal/bot/handlers.go:handleMessage (spam notification)    | Spam notification in chat: who, what matched, action taken |
 | FEAT-015 | Done   | internal/bot/handlers.go:handleNewMember, handleCallbackQuery, kickExpiredVerifications | Button verification for new members |
+| FEAT-016 | Done   | internal/i18n/i18n.go, internal/storage/storage.go, internal/bot/handlers.go:handleLang | Per-chat language switching (🇬🇧 English / 🇺🇦 Ukrainian) |
