@@ -26,6 +26,18 @@ Self-hosted Telegram spam filter bot for community groups. Written in Go, zero e
 
 ## Deployment (systemd)
 
+If you're deploying to a Linux server, build a Linux binary first:
+
+```bash
+# Linux AMD64 (most VPS/cloud servers)
+GOOS=linux GOARCH=amd64 go build -o tgwatchspam-linux ./cmd/bot
+
+# Linux ARM64 (Raspberry Pi, AWS Graviton, etc.)
+GOOS=linux GOARCH=arm64 go build -o tgwatchspam-linux-arm64 ./cmd/bot
+```
+
+No CGO required — the binary is fully self-contained.
+
 ```ini
 [Unit]
 Description=tgwatchspam bot
@@ -42,9 +54,11 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-cp tgwatchspam .env /opt/tgwatchspam/
+scp tgwatchspam-linux .env user@yourserver:/opt/tgwatchspam/tgwatchspam
 systemctl enable --now tgwatchspam
 ```
+
+Pre-built binaries for all platforms are available on the [Releases](https://github.com/sqerison/tgwatchspam/releases) page.
 
 ## Command Reference
 

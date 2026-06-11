@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>tgwatchspam — Telegram Spam Filter Bot</title>
+  <link rel="icon" type="image/jpeg" href="icon.jpeg" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -57,6 +58,12 @@
       padding: 0 24px 24px;
       border-bottom: 1px solid #1e293b;
       margin-bottom: 16px;
+    }
+    .nav-logo img {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 10px;
     }
     .nav-logo .name {
       font-size: 17px;
@@ -223,8 +230,10 @@
       border-radius: 12px;
       margin-bottom: 40px;
     }
-    .hero h1 { color: #f8fafc; margin-bottom: 8px; }
-    .hero .lead { color: #94a3b8; margin-bottom: 20px; }
+    .hero-top { display: flex; align-items: center; gap: 18px; margin-bottom: 8px; }
+    .hero-top img { width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0; }
+    .hero h1 { color: #f8fafc; margin-bottom: 0; }
+    .hero .lead { color: #94a3b8; margin-bottom: 20px; margin-top: 12px; }
     .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
     .hero-tag {
       background: rgba(255,255,255,0.1);
@@ -261,6 +270,7 @@
       justify-content: center;
     }
     .steps li p { margin: 0; }
+    .steps li p + p { margin-top: 6px; }
 
     /* ── Language switcher ── */
     .lang-switcher {
@@ -298,6 +308,7 @@
 <!-- ══════════════ SIDEBAR ══════════════ -->
 <nav>
   <div class="nav-logo">
+    <img src="icon.jpeg" alt="tgwatchspam logo" />
     <div class="name">tgwatchspam</div>
     <div class="sub en-only">Telegram Spam Filter Bot</div>
     <div class="sub uk-only">Телеграм-бот фільтрації спаму</div>
@@ -334,7 +345,10 @@
 
   <!-- Hero -->
   <div class="hero">
-    <h1>tgwatchspam</h1>
+    <div class="hero-top">
+      <img src="icon.jpeg" alt="tgwatchspam" />
+      <h1>tgwatchspam</h1>
+    </div>
     <p class="lead en-only">A self-hosted Telegram bot that protects community groups from spam — crypto offers, job scams, and recruitment messages. Rule-based, predictable, zero cloud dependency.</p>
     <p class="lead uk-only">Самостійно розгорнутий Telegram-бот, який захищає спільноти від спаму — крипто-пропозицій, шахрайства та рекрутингових повідомлень. Правила чіткі, без залежностей від хмари.</p>
     <div class="hero-tags">
@@ -361,33 +375,39 @@
   <div class="feature-grid">
     <div class="feature-card">
       <div class="feat-id">FEAT-001 / 002</div>
-      <h4>Word &amp; Regex Filters</h4>
-      <p>Blocked words and RE2 regex patterns, per chat. Substring match with no word boundaries.</p>
+      <h4><span class="en-only">Word &amp; Regex Filters</span><span class="uk-only">Фільтри слів та regex</span></h4>
+      <p class="en-only">Blocked words and RE2 regex patterns, per chat. Substring match with no word boundaries.</p>
+      <p class="uk-only">Заблоковані слова та RE2 regex-шаблони, окремо для кожного чату. Пошук підрядка без меж слів.</p>
     </div>
     <div class="feature-card">
       <div class="feat-id">FEAT-003</div>
-      <h4>Lookalike Normalization</h4>
-      <p>Cyrillic/Latin character substitution is detected and normalized before matching.</p>
+      <h4><span class="en-only">Lookalike Normalization</span><span class="uk-only">Нормалізація схожих символів</span></h4>
+      <p class="en-only">Cyrillic/Latin character substitution is detected and normalized before matching.</p>
+      <p class="uk-only">Заміна кириличних/латинських символів виявляється та нормалізується перед перевіркою.</p>
     </div>
     <div class="feature-card">
       <div class="feat-id">FEAT-015</div>
-      <h4>Button Verification</h4>
-      <p>New members must tap an inline button to prove they're human before posting.</p>
+      <h4><span class="en-only">Button Verification</span><span class="uk-only">Верифікація кнопкою</span></h4>
+      <p class="en-only">New members must tap an inline button to prove they're human before posting.</p>
+      <p class="uk-only">Нові учасники повинні натиснути кнопку, щоб підтвердити, що вони людина, перед першим повідомленням.</p>
     </div>
     <div class="feature-card">
       <div class="feat-id">FEAT-007</div>
-      <h4>Sandbox Mode</h4>
-      <p>Restricts new members to text-only (no media, no link previews) for a configurable period.</p>
+      <h4><span class="en-only">Sandbox Mode</span><span class="uk-only">Режим пісочниці</span></h4>
+      <p class="en-only">Restricts new members to text-only (no media, no link previews) for a configurable period.</p>
+      <p class="uk-only">Обмежує нових учасників до тексту (без медіа та посилань) на налаштований час.</p>
     </div>
     <div class="feature-card">
       <div class="feat-id">FEAT-010</div>
-      <h4>Name Filter</h4>
-      <p>Checks new members' display name and username against spam filters on join.</p>
+      <h4><span class="en-only">Name Filter</span><span class="uk-only">Фільтр імен</span></h4>
+      <p class="en-only">Checks new members' display name and username against spam filters on join.</p>
+      <p class="uk-only">Перевіряє ім'я та нікнейм нового учасника через фільтри спаму при вступі.</p>
     </div>
     <div class="feature-card">
       <div class="feat-id">FEAT-006</div>
-      <h4>Multi-Chat</h4>
-      <p>One bot instance manages multiple groups simultaneously. All data is isolated per chat.</p>
+      <h4><span class="en-only">Multi-Chat</span><span class="uk-only">Декілька чатів</span></h4>
+      <p class="en-only">One bot instance manages multiple groups simultaneously. All data is isolated per chat.</p>
+      <p class="uk-only">Один екземпляр бота керує кількома групами одночасно. Всі дані ізольовані по чату.</p>
     </div>
   </div>
 
@@ -411,40 +431,68 @@
   <h3><span class="en-only">First Run</span><span class="uk-only">Перший запуск</span></h3>
   <ol class="steps">
     <li>
-      <p><strong>Clone and build</strong></p>
+      <p><strong><span class="en-only">Clone and build</span><span class="uk-only">Клонувати та зібрати</span></strong></p>
       <pre>git clone https://github.com/sqerison/tgwatchspam
 cd tgwatchspam
 go build -o tgwatchspam ./cmd/bot</pre>
     </li>
     <li>
-      <p><strong>Create your <code>.env</code> file</strong></p>
+      <p><strong><span class="en-only">Create your <code>.env</code> file</span><span class="uk-only">Створити файл <code>.env</code></span></strong></p>
       <pre>cp .env.example .env
 # Edit .env and fill in BOT_TOKEN and SUPERADMIN_ID</pre>
     </li>
     <li>
-      <p><strong>Run the bot</strong></p>
+      <p><strong><span class="en-only">Run the bot</span><span class="uk-only">Запустити бота</span></strong></p>
       <pre>./tgwatchspam</pre>
-      <p>On startup the bot automatically registers all commands with BotFather so users get autocomplete when typing <code>/tgwatch_</code>.</p>
+      <p class="en-only">On startup the bot automatically registers all commands with BotFather so users get autocomplete when typing <code>/tgwatch_</code>.</p>
+      <p class="uk-only">При запуску бот автоматично реєструє всі команди в BotFather, щоб користувачі отримували автодоповнення при введенні <code>/tgwatch_</code>.</p>
     </li>
     <li>
-      <p><strong>Add the bot to your group</strong></p>
-      <p>Grant it admin rights with: <strong>Delete messages</strong>, <strong>Ban users</strong>, <strong>Restrict members</strong>.</p>
+      <p><strong><span class="en-only">Add the bot to your group</span><span class="uk-only">Додати бота до групи</span></strong></p>
+      <p class="en-only">Grant it admin rights with: <strong>Delete messages</strong>, <strong>Ban users</strong>, <strong>Restrict members</strong>.</p>
+      <p class="uk-only">Надайте права адміна: <strong>Видаляти повідомлення</strong>, <strong>Блокувати користувачів</strong>, <strong>Обмежувати учасників</strong>.</p>
     </li>
     <li>
-      <p><strong>Verify it works</strong></p>
+      <p><strong><span class="en-only">Verify it works</span><span class="uk-only">Перевірити роботу</span></strong></p>
       <pre>/tgwatch_show settings</pre>
-      <p>The bot should reply with the default settings for your chat.</p>
+      <p class="en-only">The bot should reply with the default settings for your chat.</p>
+      <p class="uk-only">Бот повинен відповісти налаштуваннями за замовчуванням для вашого чату.</p>
     </li>
   </ol>
 
   <!-- ── Deployment ── -->
   <h2 id="deployment"><span class="en-only">Deployment</span><span class="uk-only">Розгортання</span></h2>
-  <p class="en-only">Copy the binary and <code>.env</code> to the server, then create a systemd service so it restarts automatically.</p>
-  <p class="uk-only">Скопіюйте бінарний файл та <code>.env</code> на сервер, після чого створіть systemd-сервіс для автоматичного перезапуску.</p>
+  <p class="en-only">Build a Linux binary on your local machine, copy it to the server, then create a systemd service so it restarts automatically.</p>
+  <p class="uk-only">Зберіть Linux-бінарний файл на локальній машині, скопіюйте його на сервер, після чого створіть systemd-сервіс для автоматичного перезапуску.</p>
 
-  <pre>scp tgwatchspam .env user@yourserver:/opt/tgwatchspam/</pre>
+  <h3><span class="en-only">Cross-compilation</span><span class="uk-only">Крос-компіляція</span></h3>
+  <p class="en-only">No CGO is required — the binary is fully self-contained. Build for any target from any OS:</p>
+  <p class="uk-only">CGO не потрібен — бінарний файл повністю самодостатній. Збірка для будь-якої платформи з будь-якої ОС:</p>
+  <pre><span class="en-only"># Linux AMD64 (most VPS/cloud servers)
+</span><span class="uk-only"># Linux AMD64 (більшість VPS/хмарних серверів)
+</span>GOOS=linux GOARCH=amd64 go build -o tgwatchspam-linux ./cmd/bot
 
-  <p>Create <code>/etc/systemd/system/tgwatchspam.service</code>:</p>
+<span class="en-only"># Linux ARM64 (Raspberry Pi, AWS Graviton, etc.)
+</span><span class="uk-only"># Linux ARM64 (Raspberry Pi, AWS Graviton тощо)
+</span>GOOS=linux GOARCH=arm64 go build -o tgwatchspam-linux-arm64 ./cmd/bot
+
+<span class="en-only"># macOS (Apple Silicon)
+</span><span class="uk-only"># macOS (Apple Silicon)
+</span>GOOS=darwin GOARCH=arm64 go build -o tgwatchspam-darwin ./cmd/bot
+
+<span class="en-only"># Windows
+</span><span class="uk-only"># Windows
+</span>GOOS=windows GOARCH=amd64 go build -o tgwatchspam.exe ./cmd/bot</pre>
+  <div class="info">
+    <span class="en-only">Pre-built binaries for all platforms are published automatically on every release via GitHub Actions. Download them from the <a href="https://github.com/sqerison/tgwatchspam/releases" target="_blank">Releases page</a>.</span>
+    <span class="uk-only">Готові бінарні файли для всіх платформ публікуються автоматично при кожному релізі через GitHub Actions. Завантажити їх можна на <a href="https://github.com/sqerison/tgwatchspam/releases" target="_blank">сторінці Releases</a>.</span>
+  </div>
+
+  <h3><span class="en-only">Deploy to server</span><span class="uk-only">Розгортання на сервері</span></h3>
+  <pre>scp tgwatchspam-linux .env user@yourserver:/opt/tgwatchspam/tgwatchspam</pre>
+
+  <p class="en-only">Create <code>/etc/systemd/system/tgwatchspam.service</code>:</p>
+  <p class="uk-only">Створіть <code>/etc/systemd/system/tgwatchspam.service</code>:</p>
 
   <pre>[Unit]
 Description=tgwatchspam Telegram bot
@@ -484,8 +532,9 @@ journalctl -u tgwatchspam -f   # view live logs</pre>
     <li><strong>Перевірка regex</strong> — Нормалізований текст тестується по всіх RE2-шаблонах з автоматично доданим <code>(?i)</code>.</li>
   </ol>
 
-  <h3>Word Filtering (FEAT-001)</h3>
-  <p>Words are stored normalized. Matching is case-insensitive and uses substring logic — <code>доход</code> matches <code>доходності</code>, and <code>binance</code> matches <code>binance/bybit</code> (the slash does not break the match, fixing the main flaw of the previous bot).</p>
+  <h3><span class="en-only">Word Filtering (FEAT-001)</span><span class="uk-only">Фільтрація слів (FEAT-001)</span></h3>
+  <p class="en-only">Words are stored normalized. Matching is case-insensitive and uses substring logic — <code>доход</code> matches <code>доходності</code>, and <code>binance</code> matches <code>binance/bybit</code> (the slash does not break the match).</p>
+  <p class="uk-only">Слова зберігаються нормалізованими. Пошук регістронезалежний і використовує логіку підрядка — <code>доход</code> збігається з <code>доходності</code>, а <code>binance</code> — з <code>binance/bybit</code> (коса риска не розриває збіг).</p>
 
   <pre>/tgwatch_add word bitcoin
 /tgwatch_add word гарна плата
@@ -498,32 +547,44 @@ usdt
 заробіток
 digital nomad</pre>
 
-  <h3>Regex Filtering (FEAT-002)</h3>
-  <p>Patterns use Go's RE2 syntax. The <code>(?i)</code> flag is added automatically — you do not need to write it. Example patterns:</p>
+  <h3><span class="en-only">Regex Filtering (FEAT-002)</span><span class="uk-only">Regex-фільтрація (FEAT-002)</span></h3>
+  <p class="en-only">Patterns use Go's RE2 syntax. The <code>(?i)</code> flag is added automatically — you do not need to write it. Example patterns:</p>
+  <p class="uk-only">Шаблони використовують синтаксис RE2 від Go. Прапор <code>(?i)</code> додається автоматично — писати його не потрібно. Приклади шаблонів:</p>
 
   <div class="table-wrap">
   <table>
-    <tr><th>Pattern</th><th>Matches</th></tr>
+    <tr>
+      <th><span class="en-only">Pattern</span><span class="uk-only">Шаблон</span></th>
+      <th><span class="en-only">Matches</span><span class="uk-only">Збігається з</span></th>
+    </tr>
     <tr><td><code>u[\.\s]?s[\.\s]?d[\.\s]?t</code></td><td>usdt, u.s.d.t, u s d t</td></tr>
-    <tr><td><code>\+3[4-9]\d{7,}</code></td><td>Non-Italian phone numbers</td></tr>
-    <tr><td><code>зп.{0,5}\d+\$</code></td><td>Salary spam like "ЗП: 200$"</td></tr>
-    <tr><td><code>earn.{0,10}\$\d+</code></td><td>"earn $200/day" patterns</td></tr>
+    <tr><td><code>\+3[4-9]\d{7,}</code></td><td><span class="en-only">Non-Italian phone numbers</span><span class="uk-only">Не-італійські номери телефонів</span></td></tr>
+    <tr><td><code>зп.{0,5}\d+\$</code></td><td><span class="en-only">Salary spam like "ЗП: 200$"</span><span class="uk-only">Спам про зарплату: "ЗП: 200$"</span></td></tr>
+    <tr><td><code>earn.{0,10}\$\d+</code></td><td><span class="en-only">"earn $200/day" patterns</span><span class="uk-only">Шаблони "earn $200/day"</span></td></tr>
   </table>
   </div>
 
-  <h3>Cyrillic/Latin Normalization (FEAT-003)</h3>
-  <p>Spammers bypass filters by mixing scripts — for example writing <code>Rоblox</code> with a Cyrillic <code>о</code>. The bot normalizes these before matching:</p>
+  <h3><span class="en-only">Cyrillic/Latin Normalization (FEAT-003)</span><span class="uk-only">Нормалізація кирилиці/латиниці (FEAT-003)</span></h3>
+  <p class="en-only">Spammers bypass filters by mixing scripts — for example writing <code>Rоblox</code> with a Cyrillic <code>о</code>. The bot normalizes these before matching:</p>
+  <p class="uk-only">Спамери обходять фільтри, змішуючи алфавіти — наприклад, пишуть <code>Rоblox</code> з кириличною <code>о</code>. Бот нормалізує це перед перевіркою:</p>
 
   <div class="table-wrap">
   <table>
-    <tr><th>Cyrillic</th><th>Maps to</th><th>Cyrillic</th><th>Maps to</th></tr>
+    <tr>
+      <th><span class="en-only">Cyrillic</span><span class="uk-only">Кирилиця</span></th>
+      <th><span class="en-only">Maps to</span><span class="uk-only">Замінюється на</span></th>
+      <th><span class="en-only">Cyrillic</span><span class="uk-only">Кирилиця</span></th>
+      <th><span class="en-only">Maps to</span><span class="uk-only">Замінюється на</span></th>
+    </tr>
     <tr><td><code>а е о р с х у і</code></td><td><code>a e o p c x y i</code></td><td><code>А В Е К М Н О Р С Т Х У</code></td><td><code>A B E K M H O P C T X Y</code></td></tr>
   </table>
   </div>
 
   <div class="tip">
-    <strong>Testing filters</strong>
-    Use <code>/tgwatch_check &lt;text&gt;</code> to test any message against the current filters without taking any action. The bot will show exactly which rule matched and what would have happened.
+    <strong class="en-only">Testing filters</strong>
+    <strong class="uk-only">Тестування фільтрів</strong>
+    <span class="en-only">Use <code>/tgwatch_check &lt;text&gt;</code> to test any message against the current filters without taking any action. The bot will show exactly which rule matched and what would have happened.</span>
+    <span class="uk-only">Використайте <code>/tgwatch_check &lt;текст&gt;</code>, щоб перевірити будь-яке повідомлення по поточних фільтрах без будь-якої дії. Бот покаже точно, яке правило спрацювало та що б сталося.</span>
   </div>
 
   <!-- ── Spam Actions ── -->
@@ -533,11 +594,31 @@ digital nomad</pre>
 
   <div class="table-wrap">
   <table>
-    <tr><th>Action</th><th>What happens</th><th>Default</th></tr>
-    <tr><td><code>ban</code></td><td>Message deleted + user permanently banned</td><td>Yes</td></tr>
-    <tr><td><code>kick</code></td><td>Message deleted + user removed (can rejoin via invite)</td><td></td></tr>
-    <tr><td><code>mute</code></td><td>Message deleted + user muted for N hours</td><td></td></tr>
-    <tr><td><code>delete</code></td><td>Message deleted only, no further action</td><td></td></tr>
+    <tr>
+      <th><span class="en-only">Action</span><span class="uk-only">Дія</span></th>
+      <th><span class="en-only">What happens</span><span class="uk-only">Що відбувається</span></th>
+      <th><span class="en-only">Default</span><span class="uk-only">За замовч.</span></th>
+    </tr>
+    <tr>
+      <td><code>ban</code></td>
+      <td><span class="en-only">Message deleted + user permanently banned</span><span class="uk-only">Повідомлення видалено + користувача заблоковано назавжди</span></td>
+      <td><span class="en-only">Yes</span><span class="uk-only">Так</span></td>
+    </tr>
+    <tr>
+      <td><code>kick</code></td>
+      <td><span class="en-only">Message deleted + user removed (can rejoin via invite)</span><span class="uk-only">Повідомлення видалено + користувача виключено (може повернутись за запрошенням)</span></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><code>mute</code></td>
+      <td><span class="en-only">Message deleted + user muted for N hours</span><span class="uk-only">Повідомлення видалено + користувача замовчано на N годин</span></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><code>delete</code></td>
+      <td><span class="en-only">Message deleted only, no further action</span><span class="uk-only">Тільки видалення повідомлення, без подальших дій</span></td>
+      <td></td>
+    </tr>
   </table>
   </div>
 
@@ -625,16 +706,20 @@ digital nomad</pre>
 
   <div class="table-wrap">
   <table>
-    <tr><th>Level</th><th>Who</th><th>What they can do</th></tr>
+    <tr>
+      <th><span class="en-only">Level</span><span class="uk-only">Рівень</span></th>
+      <th><span class="en-only">Who</span><span class="uk-only">Хто</span></th>
+      <th><span class="en-only">What they can do</span><span class="uk-only">Що може робити</span></th>
+    </tr>
     <tr>
       <td><span class="badge badge-admin">Admin</span></td>
-      <td>Any Telegram group admin</td>
-      <td>All filter and settings commands within their chat</td>
+      <td><span class="en-only">Any Telegram group admin</span><span class="uk-only">Будь-який адмін групи Telegram</span></td>
+      <td><span class="en-only">All filter and settings commands within their chat</span><span class="uk-only">Всі команди фільтрів та налаштувань у своєму чаті</span></td>
     </tr>
     <tr>
       <td><span class="badge badge-super">Superadmin</span></td>
-      <td>User ID set in <code>SUPERADMIN_ID</code></td>
-      <td>Everything + <code>/tgwatch_copy</code> via DM with the bot</td>
+      <td><span class="en-only">User ID set in <code>SUPERADMIN_ID</code></span><span class="uk-only">User ID вказаний у <code>SUPERADMIN_ID</code></span></td>
+      <td><span class="en-only">Everything + <code>/tgwatch_copy</code> via DM with the bot</span><span class="uk-only">Всі команди + <code>/tgwatch_copy</code> через DM з ботом</span></td>
     </tr>
   </table>
   </div>
@@ -668,55 +753,75 @@ digital nomad</pre>
   <p class="en-only">All commands use the <code>/tgwatch_</code> prefix to avoid conflicts with other bots in the same group.</p>
   <p class="uk-only">Усі команди використовують префікс <code>/tgwatch_</code>, щоб уникнути конфліктів з іншими ботами в групі.</p>
 
-  <h3>Word Filters</h3>
+  <h3><span class="en-only">Word Filters</span><span class="uk-only">Фільтри слів</span></h3>
   <div class="table-wrap">
   <table>
-    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
-    <tr><td><code>/tgwatch_add word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Add a blocked word or phrase</td></tr>
-    <tr><td><code>/tgwatch_add word</code> + lines</td><td><span class="badge badge-admin">Admin</span></td><td>Bulk add — one word per line after the command</td></tr>
-    <tr><td><code>/tgwatch_remove word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove a word</td></tr>
-    <tr><td><code>/tgwatch_list words</code></td><td><span class="badge badge-admin">Admin</span></td><td>List all blocked words</td></tr>
-    <tr><td><code>/tgwatch_clear words</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all words (inline button confirmation)</td></tr>
+    <tr>
+      <th><span class="en-only">Command</span><span class="uk-only">Команда</span></th>
+      <th><span class="en-only">Who</span><span class="uk-only">Хто</span></th>
+      <th><span class="en-only">Description</span><span class="uk-only">Опис</span></th>
+    </tr>
+    <tr><td><code>/tgwatch_add word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Add a blocked word or phrase</span><span class="uk-only">Додати заблоковане слово або фразу</span></td></tr>
+    <tr><td><code>/tgwatch_add word</code> + <span class="en-only">lines</span><span class="uk-only">рядки</span></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Bulk add — one word per line after the command</span><span class="uk-only">Масове додавання — одне слово на рядок після команди</span></td></tr>
+    <tr><td><code>/tgwatch_remove word &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Remove a word</span><span class="uk-only">Видалити слово</span></td></tr>
+    <tr><td><code>/tgwatch_list words</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">List all blocked words</span><span class="uk-only">Показати всі заблоковані слова</span></td></tr>
+    <tr><td><code>/tgwatch_clear words</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Remove all words (inline button confirmation)</span><span class="uk-only">Видалити всі слова (підтвердження кнопкою)</span></td></tr>
   </table>
   </div>
 
-  <h3>Regex Filters</h3>
+  <h3><span class="en-only">Regex Filters</span><span class="uk-only">Regex-фільтри</span></h3>
   <div class="table-wrap">
   <table>
-    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
-    <tr><td><code>/tgwatch_add regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Add a RE2 regex pattern (<code>(?i)</code> applied automatically)</td></tr>
-    <tr><td><code>/tgwatch_remove regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove a pattern</td></tr>
-    <tr><td><code>/tgwatch_list regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>List all patterns</td></tr>
-    <tr><td><code>/tgwatch_clear regex</code></td><td><span class="badge badge-admin">Admin</span></td><td>Remove all patterns (inline button confirmation)</td></tr>
+    <tr>
+      <th><span class="en-only">Command</span><span class="uk-only">Команда</span></th>
+      <th><span class="en-only">Who</span><span class="uk-only">Хто</span></th>
+      <th><span class="en-only">Description</span><span class="uk-only">Опис</span></th>
+    </tr>
+    <tr><td><code>/tgwatch_add regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Add a RE2 regex pattern (<code>(?i)</code> applied automatically)</span><span class="uk-only">Додати RE2 regex-шаблон (<code>(?i)</code> додається автоматично)</span></td></tr>
+    <tr><td><code>/tgwatch_remove regex &lt;pattern&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Remove a pattern</span><span class="uk-only">Видалити шаблон</span></td></tr>
+    <tr><td><code>/tgwatch_list regex</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">List all patterns</span><span class="uk-only">Показати всі шаблони</span></td></tr>
+    <tr><td><code>/tgwatch_clear regex</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Remove all patterns (inline button confirmation)</span><span class="uk-only">Видалити всі шаблони (підтвердження кнопкою)</span></td></tr>
   </table>
   </div>
 
-  <h3>Spam Action Settings</h3>
+  <h3><span class="en-only">Spam Action Settings</span><span class="uk-only">Налаштування дій для спаму</span></h3>
   <div class="table-wrap">
   <table>
-    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
-    <tr><td><code>/tgwatch_set action delete|mute|ban|kick</code></td><td><span class="badge badge-admin">Admin</span></td><td>Action when spam is detected (default: <code>ban</code>)</td></tr>
-    <tr><td><code>/tgwatch_set mute_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Mute duration (used when action=mute)</td></tr>
+    <tr>
+      <th><span class="en-only">Command</span><span class="uk-only">Команда</span></th>
+      <th><span class="en-only">Who</span><span class="uk-only">Хто</span></th>
+      <th><span class="en-only">Description</span><span class="uk-only">Опис</span></th>
+    </tr>
+    <tr><td><code>/tgwatch_set action delete|mute|ban|kick</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Action when spam is detected (default: <code>ban</code>)</span><span class="uk-only">Дія при виявленні спаму (за замовч.: <code>ban</code>)</span></td></tr>
+    <tr><td><code>/tgwatch_set mute_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Mute duration (used when action=mute)</span><span class="uk-only">Тривалість заглушення (при action=mute)</span></td></tr>
   </table>
   </div>
 
-  <h3>New Member Controls</h3>
+  <h3><span class="en-only">New Member Controls</span><span class="uk-only">Контроль нових учасників</span></h3>
   <div class="table-wrap">
   <table>
-    <tr><th>Command</th><th>Who</th><th>Description</th></tr>
-    <tr><td><code>/tgwatch_set verification on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td>Require new members to tap a button before posting</td></tr>
-    <tr><td><code>/tgwatch_set verification_timeout &lt;min&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>Minutes to verify before auto-kick (default: 2)</td></tr>
-    <tr><td><code>/tgwatch_set sandbox on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td>Restrict new members to text-only for sandbox_duration</td></tr>
-    <tr><td><code>/tgwatch_set sandbox_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td>How long sandbox lasts (default: 24h)</td></tr>
-    <tr><td><code>/tgwatch_set name_filter on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td>Kick new members whose name/username matches spam filters</td></tr>
-    <tr><td><code>/tgwatch_unrestrict</code></td><td><span class="badge badge-admin">Admin</span></td><td>Reply to a message to manually lift sandbox on that user</td></tr>
+    <tr>
+      <th><span class="en-only">Command</span><span class="uk-only">Команда</span></th>
+      <th><span class="en-only">Who</span><span class="uk-only">Хто</span></th>
+      <th><span class="en-only">Description</span><span class="uk-only">Опис</span></th>
+    </tr>
+    <tr><td><code>/tgwatch_set verification on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Require new members to tap a button before posting</span><span class="uk-only">Вимагати від нових учасників натиснути кнопку перед постінгом</span></td></tr>
+    <tr><td><code>/tgwatch_set verification_timeout &lt;min&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Minutes to verify before auto-kick (default: 2)</span><span class="uk-only">Хвилин на верифікацію до авто-виключення (за замовч.: 2)</span></td></tr>
+    <tr><td><code>/tgwatch_set sandbox on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Restrict new members to text-only for sandbox_duration</span><span class="uk-only">Обмежити нових учасників до тексту на sandbox_duration</span></td></tr>
+    <tr><td><code>/tgwatch_set sandbox_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">How long sandbox lasts (default: 24h)</span><span class="uk-only">Тривалість пісочниці (за замовч.: 24г)</span></td></tr>
+    <tr><td><code>/tgwatch_set name_filter on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Kick new members whose name/username matches spam filters</span><span class="uk-only">Виключати нових учасників, чиє ім'я/нікнейм відповідає фільтрам</span></td></tr>
+    <tr><td><code>/tgwatch_unrestrict</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Reply to a message to manually lift sandbox on that user</span><span class="uk-only">Відповісти на повідомлення, щоб вручну зняти пісочницю з користувача</span></td></tr>
   </table>
   </div>
 
   <h3><span class="en-only">Management</span><span class="uk-only">Управління</span></h3>
   <div class="table-wrap">
   <table>
-    <tr><th><span class="en-only">Command</span><span class="uk-only">Команда</span></th><th><span class="en-only">Who</span><span class="uk-only">Хто</span></th><th><span class="en-only">Description</span><span class="uk-only">Опис</span></th></tr>
+    <tr>
+      <th><span class="en-only">Command</span><span class="uk-only">Команда</span></th>
+      <th><span class="en-only">Who</span><span class="uk-only">Хто</span></th>
+      <th><span class="en-only">Description</span><span class="uk-only">Опис</span></th>
+    </tr>
     <tr><td><code>/tgwatch_show settings</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Show all current settings for this chat</span><span class="uk-only">Показати поточні налаштування чату</span></td></tr>
     <tr><td><code>/tgwatch_check &lt;text&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Test text against filters without taking action</span><span class="uk-only">Перевірити текст по фільтрам без дії</span></td></tr>
     <tr><td><code>/tgwatch_log [n]</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Show last N spam entries (default 10, max 50)</span><span class="uk-only">Показати останні N записів спаму (за замовч. 10, макс. 50)</span></td></tr>
@@ -735,11 +840,36 @@ digital nomad</pre>
 
   <div class="table-wrap">
   <table>
-    <tr><th>Variable</th><th>Required</th><th>Default</th><th>Description</th></tr>
-    <tr><td><code>BOT_TOKEN</code></td><td>Yes</td><td>—</td><td>Telegram bot token from @BotFather</td></tr>
-    <tr><td><code>SUPERADMIN_ID</code></td><td>Yes</td><td>—</td><td>Numeric Telegram user ID of the owner (from @userinfobot)</td></tr>
-    <tr><td><code>DATABASE_PATH</code></td><td>No</td><td><code>./data/bot.db</code></td><td>Path to the SQLite database file</td></tr>
-    <tr><td><code>LOG_LEVEL</code></td><td>No</td><td><code>info</code></td><td><code>debug</code> / <code>info</code> / <code>warn</code> / <code>error</code></td></tr>
+    <tr>
+      <th><span class="en-only">Variable</span><span class="uk-only">Змінна</span></th>
+      <th><span class="en-only">Required</span><span class="uk-only">Обов'язкова</span></th>
+      <th><span class="en-only">Default</span><span class="uk-only">За замовч.</span></th>
+      <th><span class="en-only">Description</span><span class="uk-only">Опис</span></th>
+    </tr>
+    <tr>
+      <td><code>BOT_TOKEN</code></td>
+      <td><span class="en-only">Yes</span><span class="uk-only">Так</span></td>
+      <td>—</td>
+      <td><span class="en-only">Telegram bot token from @BotFather</span><span class="uk-only">Токен Telegram-бота від @BotFather</span></td>
+    </tr>
+    <tr>
+      <td><code>SUPERADMIN_ID</code></td>
+      <td><span class="en-only">Yes</span><span class="uk-only">Так</span></td>
+      <td>—</td>
+      <td><span class="en-only">Numeric Telegram user ID of the owner (from @userinfobot)</span><span class="uk-only">Числовий Telegram user ID власника (від @userinfobot)</span></td>
+    </tr>
+    <tr>
+      <td><code>DATABASE_PATH</code></td>
+      <td><span class="en-only">No</span><span class="uk-only">Ні</span></td>
+      <td><code>./data/bot.db</code></td>
+      <td><span class="en-only">Path to the SQLite database file</span><span class="uk-only">Шлях до файлу бази даних SQLite</span></td>
+    </tr>
+    <tr>
+      <td><code>LOG_LEVEL</code></td>
+      <td><span class="en-only">No</span><span class="uk-only">Ні</span></td>
+      <td><code>info</code></td>
+      <td><code>debug</code> / <code>info</code> / <code>warn</code> / <code>error</code></td>
+    </tr>
   </table>
   </div>
 
@@ -749,7 +879,11 @@ digital nomad</pre>
 
   <div class="table-wrap">
   <table>
-    <tr><th><span class="en-only">Setting</span><span class="uk-only">Налаштування</span></th><th><span class="en-only">Default</span><span class="uk-only">За замовч.</span></th><th><span class="en-only">Command</span><span class="uk-only">Команда</span></th></tr>
+    <tr>
+      <th><span class="en-only">Setting</span><span class="uk-only">Налаштування</span></th>
+      <th><span class="en-only">Default</span><span class="uk-only">За замовч.</span></th>
+      <th><span class="en-only">Command</span><span class="uk-only">Команда</span></th>
+    </tr>
     <tr><td><span class="en-only">Spam action</span><span class="uk-only">Дія для спаму</span></td><td><code>ban</code></td><td><code>/tgwatch_set action</code></td></tr>
     <tr><td><span class="en-only">Mute duration</span><span class="uk-only">Тривалість заглушення</span></td><td><code>24h</code></td><td><code>/tgwatch_set mute_duration</code></td></tr>
     <tr><td><span class="en-only">Verification</span><span class="uk-only">Верифікація</span></td><td><code>off</code></td><td><code>/tgwatch_set verification</code></td></tr>
@@ -768,21 +902,25 @@ digital nomad</pre>
 
   <div class="table-wrap">
   <table>
-    <tr><th>ID</th><th>Feature</th><th>Primary File</th></tr>
-    <tr><td><code>FEAT-001</code></td><td>Word/phrase filtering</td><td><code>internal/filter/words.go</code></td></tr>
-    <tr><td><code>FEAT-002</code></td><td>Regex filtering</td><td><code>internal/filter/regex.go</code></td></tr>
-    <tr><td><code>FEAT-003</code></td><td>Cyrillic/Latin normalization</td><td><code>internal/filter/normalize.go</code></td></tr>
-    <tr><td><code>FEAT-004</code></td><td>Spam actions</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-005</code></td><td>Admin authorization</td><td><code>internal/admin/admin.go</code></td></tr>
-    <tr><td><code>FEAT-006</code></td><td>Multi-chat support</td><td><code>internal/storage/storage.go</code></td></tr>
-    <tr><td><code>FEAT-007</code></td><td>Sandbox mode</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-008</code></td><td>/tgwatch_check command</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-009</code></td><td>Spam log</td><td><code>internal/storage/storage.go</code></td></tr>
-    <tr><td><code>FEAT-010</code></td><td>Name/username filter on join</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-011</code></td><td>Bulk word import</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-012</code></td><td>Copy settings between chats</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-013</code></td><td>/tgwatch_clean command</td><td><code>internal/bot/handlers.go</code></td></tr>
-    <tr><td><code>FEAT-014</code></td><td>Spam notification in chat</td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr>
+      <th>ID</th>
+      <th><span class="en-only">Feature</span><span class="uk-only">Функція</span></th>
+      <th><span class="en-only">Primary File</span><span class="uk-only">Основний файл</span></th>
+    </tr>
+    <tr><td><code>FEAT-001</code></td><td><span class="en-only">Word/phrase filtering</span><span class="uk-only">Фільтрація слів/фраз</span></td><td><code>internal/filter/words.go</code></td></tr>
+    <tr><td><code>FEAT-002</code></td><td><span class="en-only">Regex filtering</span><span class="uk-only">Regex-фільтрація</span></td><td><code>internal/filter/regex.go</code></td></tr>
+    <tr><td><code>FEAT-003</code></td><td><span class="en-only">Cyrillic/Latin normalization</span><span class="uk-only">Нормалізація кирилиці/латиниці</span></td><td><code>internal/filter/normalize.go</code></td></tr>
+    <tr><td><code>FEAT-004</code></td><td><span class="en-only">Spam actions</span><span class="uk-only">Дії для спаму</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-005</code></td><td><span class="en-only">Admin authorization</span><span class="uk-only">Авторизація адмінів</span></td><td><code>internal/admin/admin.go</code></td></tr>
+    <tr><td><code>FEAT-006</code></td><td><span class="en-only">Multi-chat support</span><span class="uk-only">Підтримка декількох чатів</span></td><td><code>internal/storage/storage.go</code></td></tr>
+    <tr><td><code>FEAT-007</code></td><td><span class="en-only">Sandbox mode</span><span class="uk-only">Режим пісочниці</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-008</code></td><td><span class="en-only">/tgwatch_check command</span><span class="uk-only">Команда /tgwatch_check</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-009</code></td><td><span class="en-only">Spam log</span><span class="uk-only">Журнал спаму</span></td><td><code>internal/storage/storage.go</code></td></tr>
+    <tr><td><code>FEAT-010</code></td><td><span class="en-only">Name/username filter on join</span><span class="uk-only">Фільтр імен/нікнеймів при вступі</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-011</code></td><td><span class="en-only">Bulk word import</span><span class="uk-only">Масовий імпорт слів</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-012</code></td><td><span class="en-only">Copy settings between chats</span><span class="uk-only">Копіювання налаштувань між чатами</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-013</code></td><td><span class="en-only">/tgwatch_clean command</span><span class="uk-only">Команда /tgwatch_clean</span></td><td><code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-014</code></td><td><span class="en-only">Spam notification in chat</span><span class="uk-only">Сповіщення про спам у чаті</span></td><td><code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-015</code></td><td><span class="en-only">Button verification for new members</span><span class="uk-only">Верифікація кнопкою для нових учасників</span></td><td><code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-016</code></td><td><span class="en-only">Per-chat language switching (🇬🇧 / 🇺🇦)</span><span class="uk-only">Перемикання мови бота (🇬🇧 / 🇺🇦)</span></td><td><code>internal/i18n/i18n.go</code>, <code>internal/bot/handlers.go</code></td></tr>
   </table>
@@ -791,15 +929,19 @@ digital nomad</pre>
   <br><br>
   <div style="border-top: 1px solid var(--border); padding-top: 32px; margin-top: 8px;">
     <p style="color: var(--muted); font-size: 13px; margin-bottom: 20px;">
-      tgwatchspam — self-hosted, open source, written in Go. &nbsp;·&nbsp;
+      <span class="en-only">tgwatchspam — self-hosted, open source, written in Go.</span>
+      <span class="uk-only">tgwatchspam — самостійне розгортання, відкритий код, написано на Go.</span>
+      &nbsp;·&nbsp;
       <a href="https://github.com/sqerison/tgwatchspam">github.com/sqerison/tgwatchspam</a>
     </p>
     <div style="background: var(--accent-light); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px;">
       <p style="font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px;">
-        Built by <a href="https://apprecode.com" target="_blank" style="color: var(--accent);">AppRecode</a>
+        <span class="en-only">Built by</span><span class="uk-only">Розроблено</span>
+        <a href="https://apprecode.com" target="_blank" style="color: var(--accent);">AppRecode</a>
       </p>
       <p style="font-size: 13px; color: var(--muted); margin-bottom: 16px;">
-        Cloud &amp; DevOps consulting company with 14+ years of IT experience. We build infrastructure, automate delivery, and deploy AI systems.
+        <span class="en-only">Cloud &amp; DevOps consulting company with 14+ years of IT experience. We build infrastructure, automate delivery, and deploy AI systems.</span>
+        <span class="uk-only">Консалтингова компанія з хмарних технологій та DevOps з 14+ роками досвіду в IT. Будуємо інфраструктуру, автоматизуємо доставку та розгортаємо AI-системи.</span>
       </p>
       <div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px;">
         <a href="https://apprecode.com/services/data-engineering-services" target="_blank" style="color: var(--accent); text-decoration: none; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px;">MLOps &amp; AI Infrastructure</a>
