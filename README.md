@@ -92,3 +92,16 @@ All commands use the `/tgwatch_` prefix to avoid conflicts with other bots in th
 | `/tgwatch_log clear` | Admin | Clear spam log (asks YES) |
 | `/tgwatch_clean` | Admin | Delete all bot replies and admin commands from chat |
 | `/tgwatch_copy <src_id> <dst_id>` | Superadmin | Copy all settings from one chat to another (DM only) |
+
+## Built by AppRecode
+
+tgwatchspam is developed and maintained by **[AppRecode](https://apprecode.com)** — a Cloud & DevOps consulting company with 14+ years of IT experience.
+
+If you need help deploying or customizing this bot, or are looking for related services:
+
+- **[MLOps & AI Infrastructure](https://apprecode.com/services/data-engineering-services)** — ML pipelines, model deployment, RAG systems, LLM infrastructure
+- **[AI Security](https://apprecode.com/services/ai-security)** — ML-based threat detection, real-time monitoring, automated compliance
+- **[DevOps & Cloud](https://apprecode.com/services/devops-development)** — CI/CD, Kubernetes, managed cloud on AWS & Azure
+- **[Managed Cloud Services](https://apprecode.com/services/managed-cloud-services)** — 24/7 infrastructure management and support
+
+→ [apprecode.com](https://apprecode.com)

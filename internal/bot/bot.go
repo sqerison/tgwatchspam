@@ -60,6 +60,8 @@ func Run(cfg *config.Config, st *storage.Storage) {
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
+	// chat_member is excluded by default — must be requested explicitly to catch joins via invite link [FEAT-015]
+	u.AllowedUpdates = []string{"message", "callback_query", "chat_member"}
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {

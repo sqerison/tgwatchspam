@@ -115,12 +115,21 @@ func (h *handler) handle(update tgbotapi.Update) {
 		return
 	}
 
+	// New member join via ChatMemberUpdated — covers invite-link joins in supergroups [FEAT-015]
+	if update.ChatMember != nil {
+		cm := update.ChatMember
+		if (cm.OldChatMember.HasLeft() || cm.OldChatMember.WasKicked()) && cm.NewChatMember.Status == "member" {
+			h.handleNewMember(cm.Chat.ID, cm.NewChatMember.User)
+		}
+		return
+	}
+
 	if update.Message == nil {
 		return
 	}
 	msg := update.Message
 
-	// New member join: sandbox + name filter [FEAT-007, FEAT-010]
+	// New member join via service message — covers direct adds and some group types [FEAT-007, FEAT-010]
 	if len(msg.NewChatMembers) > 0 {
 		for i := range msg.NewChatMembers {
 			h.handleNewMember(msg.Chat.ID, &msg.NewChatMembers[i])
@@ -351,7 +360,7 @@ func (h *handler) handleCommand(msg *tgbotapi.Message) {
 	switch cmd {
 	case "add":
 		h.handleAdd(msg, args)
-	case "remove":
+	case "remove", "del":
 		h.handleRemove(msg, args)
 	case "list":
 		h.handleList(chatID, args)

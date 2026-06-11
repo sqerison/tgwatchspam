@@ -5,10 +5,12 @@ import "strings"
 // lookalikesMap maps Cyrillic visually-identical characters to their Latin equivalents. [FEAT-003]
 // Applied to both stored words (at insert time) and incoming messages (before matching).
 var lookalikesMap = map[rune]rune{
-	// Lowercase
+	// Lowercase — visually identical to Latin counterparts
 	'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c',
 	'х': 'x', 'у': 'y', 'і': 'i',
-	// Uppercase
+	// Lowercase — close enough to be used as bypass in sans-serif fonts
+	'м': 'm', 'т': 't',
+	// Uppercase — visually identical
 	'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M',
 	'Н': 'H', 'О': 'O', 'Р': 'P', 'С': 'C', 'Т': 'T',
 	'Х': 'X', 'У': 'Y',
