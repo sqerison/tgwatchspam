@@ -3,6 +3,7 @@
 ## v1.1.0 — 2026-06-11
 
 - FEAT-016: Per-chat language switching — `/tgwatch_lang` shows inline buttons (🇬🇧 English / 🇺🇦 Українська); all bot messages, verification prompts, and notifications respect the selected language; stored per chat_id in SQLite
+- FEAT-017: Custom welcome message and chat rules per chat — `/tgwatch_set welcome`, `/tgwatch_set rules`, `/tgwatch_set rules_url`; rules are shown to new members as a tap-to-expand quote inside the verification message, the button becomes “✅ I accept the rules”, and an optional “📖 Chat rules” link button opens a full article; every change is previewed and validated before it is saved
 
 ## v1.0.0 — 2026-06-08
 

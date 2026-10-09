@@ -21,3 +21,4 @@ Search code with: `grep -r "FEAT-XXX" .`
 | FEAT-014 | Done   | internal/bot/handlers.go:handleMessage (spam notification)    | Spam notification in chat: who, what matched, action taken |
 | FEAT-015 | Done   | internal/bot/handlers.go:handleNewMember, handleCallbackQuery, kickExpiredVerifications | Button verification for new members |
 | FEAT-016 | Done   | internal/i18n/i18n.go, internal/storage/storage.go, internal/bot/handlers.go:handleLang | Per-chat language switching (🇬🇧 English / 🇺🇦 Ukrainian) |
+| FEAT-017 | Done   | internal/bot/handlers.go:verificationContent, handleSetVerificationText, internal/storage/storage.go:SetVerificationText | Custom welcome text + chat rules (expandable quote, accept button, rules link) |

@@ -26,6 +26,9 @@ type Settings struct {
 	VerificationEnabled  bool   // [FEAT-015]
 	VerificationTimeoutM int    // [FEAT-015]
 	Language             string // [FEAT-016]
+	WelcomeText          string // [FEAT-017] custom verification greeting (HTML); empty = built-in text
+	RulesText            string // [FEAT-017] chat rules (HTML) shown as an expandable quote; empty = none
+	RulesURL             string // [FEAT-017] link behind the "Chat rules" button; empty = no button
 }
 
 // PendingVerification tracks a new member awaiting button verification. [FEAT-015]
@@ -137,11 +140,14 @@ func (s *Storage) migrate() error {
 		return err
 	}
 
-	// Add new columns to existing settings tables (idempotent). [FEAT-015, FEAT-016]
+	// Add new columns to existing settings tables (idempotent). [FEAT-015, FEAT-016, FEAT-017]
 	for _, stmt := range []string{
 		`ALTER TABLE settings ADD COLUMN verification_enabled INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE settings ADD COLUMN verification_timeout_m INTEGER NOT NULL DEFAULT 2`,
 		`ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'en'`,
+		`ALTER TABLE settings ADD COLUMN welcome_text TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE settings ADD COLUMN rules_text TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE settings ADD COLUMN rules_url TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
@@ -254,14 +260,14 @@ func (s *Storage) GetSettings(chatID int64) (*Settings, error) {
 		return nil, err
 	}
 	row := s.db.QueryRow(
-		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m, language
+		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m, language, welcome_text, rules_text, rules_url
 		 FROM settings WHERE chat_id = ?`,
 		chatID,
 	)
 	var st Settings
 	st.ChatID = chatID
 	var sandboxEnabled, nameFilter, verificationEnabled int
-	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM, &st.Language); err != nil {
+	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM, &st.Language, &st.WelcomeText, &st.RulesText, &st.RulesURL); err != nil {
 		return nil, err
 	}
 	st.SandboxEnabled = sandboxEnabled != 0
@@ -450,8 +456,8 @@ func (s *Storage) CopySettings(srcChatID, dstChatID int64) error {
 		return err
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO settings (chat_id, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter)
-		 SELECT ?, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter FROM settings WHERE chat_id = ?`,
+		`INSERT INTO settings (chat_id, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url)
+		 SELECT ?, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url FROM settings WHERE chat_id = ?`,
 		dstChatID, srcChatID,
 	); err != nil {
 		return err
@@ -513,6 +519,19 @@ func (s *Storage) SetVerificationTimeout(chatID int64, minutes int) error {
 		return err
 	}
 	_, err := s.db.Exec(`UPDATE settings SET verification_timeout_m = ? WHERE chat_id = ?`, minutes, chatID)
+	return err
+}
+
+// SetVerificationText stores the custom welcome text, rules and rules link shown to new members. [FEAT-017]
+// Empty strings reset the corresponding part to the built-in default.
+func (s *Storage) SetVerificationText(chatID int64, welcome, rules, rulesURL string) error {
+	if err := s.ensureSettings(chatID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(
+		`UPDATE settings SET welcome_text = ?, rules_text = ?, rules_url = ? WHERE chat_id = ?`,
+		welcome, rules, rulesURL, chatID,
+	)
 	return err
 }
 

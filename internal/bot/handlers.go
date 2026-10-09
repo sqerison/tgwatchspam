@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"html"
 	"log"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sqerison/tgwatchspam/internal/admin"
@@ -123,6 +125,52 @@ func actionLabel(lang, action string, muteDurationH int) string {
 	}
 }
 
+// Length limits for custom verification text, in characters. Together with the built-in
+// wording they keep the message under Telegram's 4096-character cap. [FEAT-017]
+const (
+	maxWelcomeLen = 600
+	maxRulesLen   = 3000
+)
+
+// verificationContent builds the message and keyboard shown to a new member. [FEAT-015, FEAT-017]
+// callbackData is the accept button's payload: "verify:…" for a real join, "preview" for an admin preview.
+func verificationContent(s *storage.Settings, displayName, callbackData string) (string, tgbotapi.InlineKeyboardMarkup) {
+	lang := s.Language
+	name := html.EscapeString(displayName)
+	hasRules := s.RulesText != "" || s.RulesURL != ""
+
+	var text string
+	switch {
+	case s.WelcomeText != "":
+		text = strings.NewReplacer(
+			"{name}", name,
+			"{timeout}", strconv.Itoa(s.VerificationTimeoutM),
+		).Replace(s.WelcomeText)
+	case hasRules:
+		text = i18n.Tf(lang, "verify_message_rules", name, s.VerificationTimeoutM)
+	default:
+		text = i18n.Tf(lang, "verify_message", name, s.VerificationTimeoutM)
+	}
+	if s.RulesText != "" {
+		text += "\n\n<blockquote expandable>" + s.RulesText + "</blockquote>"
+	}
+
+	buttonKey := "verify_button"
+	if hasRules {
+		buttonKey = "verify_button_rules"
+	}
+	var rows [][]tgbotapi.InlineKeyboardButton
+	if s.RulesURL != "" {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonURL(i18n.T(lang, "verify_rules_url_button"), s.RulesURL),
+		))
+	}
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, buttonKey), callbackData),
+	))
+	return text, tgbotapi.NewInlineKeyboardMarkup(rows...)
+}
+
 // handle is the top-level dispatcher for incoming updates.
 func (h *handler) handle(update tgbotapi.Update) {
 	// Inline button presses (verification + lang + confirm) [FEAT-015, FEAT-016]
@@ -182,7 +230,6 @@ func (h *handler) handleNewMember(chatID int64, user *tgbotapi.User) {
 		log.Printf("get settings chatID=%d: %v", chatID, err)
 		return
 	}
-	lang := settings.Language
 
 	// Name/username filter — kick spammers before they can do anything [FEAT-010]
 	if settings.NameFilter {
@@ -208,16 +255,18 @@ func (h *handler) handleNewMember(chatID int64, user *tgbotapi.User) {
 			displayName = fmt.Sprintf("User #%d", user.ID)
 		}
 
-		msgText := i18n.Tf(lang, "verify_message", html.EscapeString(displayName), settings.VerificationTimeoutM)
-		keyboard := tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(
-					i18n.T(lang, "verify_button"),
-					fmt.Sprintf("verify:%d:%d", chatID, user.ID),
-				),
-			),
-		)
+		callbackData := fmt.Sprintf("verify:%d:%d", chatID, user.ID)
+		msgText, keyboard := verificationContent(settings, displayName, callbackData)
 		sent, err := h.sendWithKeyboard(chatID, msgText, keyboard)
+		if err != nil && (settings.WelcomeText != "" || settings.RulesText != "" || settings.RulesURL != "") {
+			// Custom text was rejected — fall back to the built-in message so the member
+			// is not left restricted with no button to tap. [FEAT-017]
+			log.Printf("send custom verification message chatID=%d: %v — falling back to default", chatID, err)
+			plain := *settings
+			plain.WelcomeText, plain.RulesText, plain.RulesURL = "", "", ""
+			msgText, keyboard = verificationContent(&plain, displayName, callbackData)
+			sent, err = h.sendWithKeyboard(chatID, msgText, keyboard)
+		}
 		if err != nil {
 			log.Printf("send verification message: %v", err)
 			return
@@ -628,13 +677,23 @@ func (h *handler) handleClear(msg *tgbotapi.Message, args string) {
 func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	chatID := msg.Chat.ID
 	lang := h.lang(chatID)
-	parts := strings.SplitN(args, " ", 2)
-	if len(parts) < 2 {
-		h.sendHTML(chatID, i18n.T(lang, "set_usage"))
+	// Split on the first whitespace of any kind so a value may start on the next line,
+	// e.g. "/tgwatch_set rules\n1. …" [FEAT-017]
+	args = strings.TrimSpace(args)
+	key, val := strings.ToLower(args), ""
+	if i := strings.IndexAny(args, " \t\n\r"); i >= 0 {
+		key = strings.ToLower(args[:i])
+		val = strings.TrimSpace(args[i+1:])
+	}
+	if val == "" {
+		switch key {
+		case "welcome", "rules", "rules_url":
+			h.sendHTML(chatID, i18n.T(lang, "set_"+key+"_usage"))
+		default:
+			h.sendHTML(chatID, i18n.T(lang, "set_usage"))
+		}
 		return
 	}
-	key := strings.ToLower(strings.TrimSpace(parts[0]))
-	val := strings.TrimSpace(parts[1])
 
 	switch key {
 	case "action":
@@ -739,9 +798,75 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 		}
 		h.sendHTML(chatID, i18n.Tf(lang, "set_verif_to_ok", n))
 
+	case "welcome", "rules", "rules_url":
+		h.handleSetVerificationText(msg, key, val)
+
 	default:
 		h.sendHTML(chatID, i18n.T(lang, "set_unknown"))
 	}
+}
+
+// handleSetVerificationText handles /tgwatch_set welcome|rules|rules_url. [FEAT-017]
+// The new message is sent as a preview before saving, so text Telegram cannot parse is never stored.
+func (h *handler) handleSetVerificationText(msg *tgbotapi.Message, key, val string) {
+	chatID := msg.Chat.ID
+	s, err := h.storage.GetSettings(chatID)
+	if err != nil {
+		h.send(chatID, i18n.T(h.lang(chatID), "set_text_fail"))
+		return
+	}
+	lang := s.Language
+	reset := strings.EqualFold(val, "off")
+	if reset {
+		val = ""
+	}
+
+	switch key {
+	case "welcome":
+		if n := utf8.RuneCountInString(val); n > maxWelcomeLen {
+			h.send(chatID, i18n.Tf(lang, "set_text_too_long", n, maxWelcomeLen))
+			return
+		}
+		s.WelcomeText = val
+	case "rules":
+		if n := utf8.RuneCountInString(val); n > maxRulesLen {
+			h.send(chatID, i18n.Tf(lang, "set_text_too_long", n, maxRulesLen))
+			return
+		}
+		s.RulesText = val
+	case "rules_url":
+		if !reset {
+			u, err := url.Parse(val)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+				h.sendHTML(chatID, i18n.T(lang, "set_rules_url_usage"))
+				return
+			}
+		}
+		s.RulesURL = val
+	}
+
+	name := msg.From.FirstName
+	if name == "" {
+		name = fmt.Sprintf("User #%d", msg.From.ID)
+	}
+	text, keyboard := verificationContent(s, name, "preview")
+	if _, err := h.sendWithKeyboard(chatID, text, keyboard); err != nil {
+		h.sendHTML(chatID, i18n.Tf(lang, "set_text_invalid", html.EscapeString(err.Error())))
+		return
+	}
+	if err := h.storage.SetVerificationText(chatID, s.WelcomeText, s.RulesText, s.RulesURL); err != nil {
+		h.send(chatID, i18n.T(lang, "set_text_fail"))
+		return
+	}
+
+	reply := i18n.T(lang, "set_text_ok")
+	if reset {
+		reply = i18n.T(lang, "set_text_reset")
+	}
+	if !s.VerificationEnabled {
+		reply += "\n\n" + i18n.T(lang, "set_text_verif_off")
+	}
+	h.sendHTML(chatID, reply)
 }
 
 // handleShowSettings handles /tgwatch_show settings
@@ -770,9 +895,22 @@ func (h *handler) handleShowSettings(chatID int64) {
 	if lang == i18n.UK {
 		langLabel = i18n.T(lang, "settings_lang_uk")
 	}
+	welcome := i18n.T(lang, "settings_default")
+	if s.WelcomeText != "" {
+		welcome = i18n.T(lang, "settings_custom")
+	}
+	rules := i18n.T(lang, "settings_not_set")
+	if s.RulesText != "" {
+		rules = i18n.T(lang, "settings_set")
+	}
+	rulesURL := i18n.T(lang, "settings_not_set")
+	if s.RulesURL != "" {
+		rulesURL = html.EscapeString(s.RulesURL)
+	}
 	h.sendHTML(chatID, i18n.Tf(lang, "show_settings",
 		s.Action, s.MuteDurationH, nameFilter,
 		verification, s.VerificationTimeoutM,
+		welcome, rules, rulesURL,
 		sandbox, s.SandboxHours, langLabel,
 	))
 }
@@ -967,6 +1105,16 @@ func (h *handler) handleConfirmCallback(query *tgbotapi.CallbackQuery) {
 func (h *handler) handleCallbackQuery(query *tgbotapi.CallbackQuery) {
 	if strings.HasPrefix(query.Data, "confirm:") {
 		h.handleConfirmCallback(query)
+		return
+	}
+
+	// Accept button on an admin preview of the verification message [FEAT-017]
+	if query.Data == "preview" {
+		lang := i18n.EN
+		if query.Message != nil && query.Message.Chat != nil {
+			lang = h.lang(query.Message.Chat.ID)
+		}
+		h.bot.Request(tgbotapi.NewCallback(query.ID, i18n.T(lang, "preview_popup")))
 		return
 	}
 

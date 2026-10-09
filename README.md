@@ -91,10 +91,15 @@ All commands use the `/tgwatch_` prefix to avoid conflicts with other bots in th
 |---------|-----|-------------|
 | `/tgwatch_set verification on\|off` | Admin | Require new members to tap a button before posting |
 | `/tgwatch_set verification_timeout <min>` | Admin | Minutes to verify before auto-kick (default: 2) |
+| `/tgwatch_set welcome <text>\|off` | Admin | Custom greeting for new members. Placeholders: `{name}`, `{timeout}` |
+| `/tgwatch_set rules <text>\|off` | Admin | Chat rules shown as a tap-to-expand quote; the button becomes "I accept the rules" |
+| `/tgwatch_set rules_url <link>\|off` | Admin | Adds a "Chat rules" link button (full article, pinned post, etc.) |
 | `/tgwatch_set sandbox on\|off` | Admin | Restrict new members to text-only (no media/links) |
 | `/tgwatch_set sandbox_duration <hours>` | Admin | How long sandbox lasts (default: 24h) |
 | `/tgwatch_set name_filter on\|off` | Admin | Kick users whose name/username matches spam filters on join |
 | `/tgwatch_unrestrict` | Admin | Reply to a message to manually lift sandbox on that user |
+
+Welcome text and rules are shown in the verification message, so they need `verification on`. Both accept the HTML tags `<b>`, `<i>` and `<a href>`; rules may span several lines (max 3000 characters, welcome max 600). After each change the bot posts a preview and saves only if Telegram accepts the text.
 
 ### Management
 

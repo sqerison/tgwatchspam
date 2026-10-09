@@ -17,7 +17,7 @@ func registerCommands(bot *tgbotapi.BotAPI) {
 		{Command: "tgwatch_remove", Description: "Remove word or regex: /tgwatch_remove word <text> | /tgwatch_remove regex <pattern>"},
 		{Command: "tgwatch_list", Description: "List blocked words or patterns: /tgwatch_list words | /tgwatch_list regex"},
 		{Command: "tgwatch_clear", Description: "Clear all words or patterns: /tgwatch_clear words | /tgwatch_clear regex"},
-		{Command: "tgwatch_set", Description: "Change settings: action, mute_duration, verification, sandbox, name_filter"},
+		{Command: "tgwatch_set", Description: "Change settings: action, mute_duration, verification, welcome, rules, rules_url, sandbox, name_filter"},
 		{Command: "tgwatch_show", Description: "Show current settings: /tgwatch_show settings"},
 		{Command: "tgwatch_check", Description: "Test a message against filters without taking action"},
 		{Command: "tgwatch_log", Description: "Show spam log: /tgwatch_log [n] | /tgwatch_log clear"},
