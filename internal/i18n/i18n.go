@@ -40,6 +40,12 @@ var translations = map[Lang]map[string]string{
 		"verify_message": "<b>Welcome, %s!</b>\n\nPlease tap the button below to confirm you are a real person.\n" +
 			"You have <b>%d minute(s)</b> to verify — if you don't respond, you will be automatically removed.",
 		"verify_button":        "I'm not a bot — let me in",
+		// Custom welcome + rules [FEAT-017]
+		"verify_message_rules": "<b>Welcome, %s!</b>\n\nPlease read the chat rules and tap the button below to accept them.\n" +
+			"You have <b>%d minute(s)</b> — if you don't respond, you will be automatically removed.",
+		"verify_button_rules":     "✅ I accept the rules",
+		"verify_rules_url_button": "📖 Chat rules",
+		"preview_popup":           "This is a preview — the button only works for new members.",
 		"verify_popup_invalid": "This button is not for you.",
 		"verify_popup_ok":      "Verified! Welcome to the group.",
 
@@ -106,7 +112,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Usage: /tgwatch_clear words  or  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout&gt; &lt;value&gt;",
+		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
 		"set_action_valid": "Valid actions:\n<code>delete</code> — remove message only\n<code>mute</code> — remove + mute for N hours\n<code>kick</code> — remove + kick (can rejoin)\n<code>ban</code> — remove + permanent ban",
 		"set_action_fail":          "Failed to update action.",
 		"set_action_ok":            "Spam action set to <b>%s</b>.",
@@ -134,7 +140,23 @@ var translations = map[Lang]map[string]string{
 		"set_verif_to_invalid":     "Verification timeout must be a positive whole number of minutes.",
 		"set_verif_to_fail":        "Failed to update verification timeout.",
 		"set_verif_to_ok":          "Verification timeout set to <b>%d minute(s)</b>.",
-		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>",
+		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+
+		// Custom welcome + rules [FEAT-017]
+		"set_welcome_usage": "Usage: /tgwatch_set welcome &lt;text&gt; — greeting shown to new members above the rules.\n" +
+			"Placeholders: <code>{name}</code>, <code>{timeout}</code> (minutes). HTML tags &lt;b&gt;, &lt;i&gt;, &lt;a href&gt; are allowed.\n" +
+			"<code>/tgwatch_set welcome off</code> restores the built-in text.",
+		"set_rules_usage": "Usage: /tgwatch_set rules &lt;text&gt; — chat rules, shown to new members as a tap-to-expand quote. The text may span several lines.\n" +
+			"HTML tags &lt;b&gt;, &lt;i&gt;, &lt;a href&gt; are allowed.\n" +
+			"<code>/tgwatch_set rules off</code> removes the rules.",
+		"set_rules_url_usage": "Usage: /tgwatch_set rules_url &lt;https://…&gt; — adds a “Chat rules” link button under the welcome message.\n" +
+			"<code>/tgwatch_set rules_url off</code> removes the button.",
+		"set_text_too_long":  "The text is too long: %d characters, the maximum is %d.",
+		"set_text_invalid":   "Telegram rejected this message, nothing was saved:\n<code>%s</code>\n\nCheck that every HTML tag is closed and write a literal &lt; as <code>&amp;lt;</code>.",
+		"set_text_fail":      "Failed to save the setting.",
+		"set_text_ok":        "Saved. The message above is a preview of what new members will see.",
+		"set_text_reset":     "Removed. The message above is a preview of what new members will see now.",
+		"set_text_verif_off": "Note: verification is off, so new members do not see this message. Turn it on with <code>/tgwatch_set verification on</code>.",
 
 		// Show settings
 		"show_settings_fail": "Error fetching settings.",
@@ -144,11 +166,18 @@ var translations = map[Lang]map[string]string{
 			"Name filter:           <b>%s</b>\n" +
 			"Verification:          <b>%s</b>\n" +
 			"Verification timeout:  <b>%dm</b>\n" +
+			"Welcome text:          <b>%s</b>\n" +
+			"Rules:                 <b>%s</b>\n" +
+			"Rules link:            <b>%s</b>\n" +
 			"Sandbox:               <b>%s</b>\n" +
 			"Sandbox duration:      <b>%dh</b>\n" +
 			"Language:              <b>%s</b>",
 		"settings_on":  "on",
 		"settings_off": "off",
+		"settings_default": "default",
+		"settings_custom":  "custom",
+		"settings_set":     "set",
+		"settings_not_set": "not set",
 		"settings_lang_en": "🇬🇧 English",
 		"settings_lang_uk": "🇺🇦 Ukrainian",
 
@@ -214,6 +243,9 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set sandbox_duration &lt;hours&gt;
 /tgwatch_set verification on|off
 /tgwatch_set verification_timeout &lt;minutes&gt;
+/tgwatch_set welcome &lt;text&gt;|off — greeting for new members
+/tgwatch_set rules &lt;text&gt;|off — chat rules new members must accept
+/tgwatch_set rules_url &lt;link&gt;|off — “Chat rules” link button
 /tgwatch_set name_filter on|off
 /tgwatch_unrestrict — reply to lift sandbox on a user
 
@@ -237,6 +269,12 @@ var translations = map[Lang]map[string]string{
 		"verify_message": "<b>Ласкаво просимо, %s!</b>\n\nНатисніть кнопку нижче, щоб підтвердити, що ви — реальна людина.\n" +
 			"У вас є <b>%d хв.</b> на верифікацію — якщо не відповісте, вас буде видалено автоматично.",
 		"verify_button":        "Я не бот — впустіть мене",
+		// Custom welcome + rules [FEAT-017]
+		"verify_message_rules": "<b>Ласкаво просимо, %s!</b>\n\nПрочитайте правила чату та натисніть кнопку нижче, щоб їх прийняти.\n" +
+			"У вас є <b>%d хв.</b> — якщо не відповісте, вас буде видалено автоматично.",
+		"verify_button_rules":     "✅ Я приймаю правила",
+		"verify_rules_url_button": "📖 Правила чату",
+		"preview_popup":           "Це попередній перегляд — кнопка працює лише для нових учасників.",
 		"verify_popup_invalid": "Ця кнопка не для вас.",
 		"verify_popup_ok":      "Верифіковано! Ласкаво просимо до групи.",
 
@@ -303,7 +341,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Використання: /tgwatch_clear words  або  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout&gt; &lt;значення&gt;",
+		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
 		"set_action_valid": "Допустимі дії:\n<code>delete</code> — тільки видалити повідомлення\n<code>mute</code> — видалити + замовчати на N годин\n<code>kick</code> — видалити + виключити (може повернутись)\n<code>ban</code> — видалити + заблокувати назавжди",
 		"set_action_fail":          "Не вдалося оновити дію.",
 		"set_action_ok":            "Дію для спаму встановлено: <b>%s</b>.",
@@ -331,7 +369,23 @@ var translations = map[Lang]map[string]string{
 		"set_verif_to_invalid":     "Таймаут верифікації має бути додатнім цілим числом хвилин.",
 		"set_verif_to_fail":        "Не вдалося оновити таймаут верифікації.",
 		"set_verif_to_ok":          "Таймаут верифікації: <b>%d хв.</b>.",
-		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>",
+		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+
+		// Custom welcome + rules [FEAT-017]
+		"set_welcome_usage": "Використання: /tgwatch_set welcome &lt;текст&gt; — привітання для нових учасників над правилами.\n" +
+			"Підстановки: <code>{name}</code>, <code>{timeout}</code> (хвилини). Дозволені HTML-теги &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.\n" +
+			"<code>/tgwatch_set welcome off</code> повертає стандартний текст.",
+		"set_rules_usage": "Використання: /tgwatch_set rules &lt;текст&gt; — правила чату, які нові учасники бачать як цитату, що розгортається. Текст може бути на кілька рядків.\n" +
+			"Дозволені HTML-теги &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.\n" +
+			"<code>/tgwatch_set rules off</code> прибирає правила.",
+		"set_rules_url_usage": "Використання: /tgwatch_set rules_url &lt;https://…&gt; — додає кнопку-посилання «Правила чату» під привітанням.\n" +
+			"<code>/tgwatch_set rules_url off</code> прибирає кнопку.",
+		"set_text_too_long":  "Текст задовгий: %d символів, максимум — %d.",
+		"set_text_invalid":   "Telegram відхилив це повідомлення, нічого не збережено:\n<code>%s</code>\n\nПеревірте, що всі HTML-теги закриті, а символ &lt; записаний як <code>&amp;lt;</code>.",
+		"set_text_fail":      "Не вдалося зберегти налаштування.",
+		"set_text_ok":        "Збережено. Повідомлення вище — попередній перегляд того, що побачать нові учасники.",
+		"set_text_reset":     "Прибрано. Повідомлення вище — попередній перегляд того, що тепер побачать нові учасники.",
+		"set_text_verif_off": "Увага: верифікацію вимкнено, тому нові учасники не бачать цього повідомлення. Увімкніть її: <code>/tgwatch_set verification on</code>.",
 
 		// Show settings
 		"show_settings_fail": "Помилка отримання налаштувань.",
@@ -341,11 +395,18 @@ var translations = map[Lang]map[string]string{
 			"Фільтр імен:           <b>%s</b>\n" +
 			"Верифікація:           <b>%s</b>\n" +
 			"Таймаут верифікації:   <b>%dm</b>\n" +
+			"Текст привітання:      <b>%s</b>\n" +
+			"Правила:               <b>%s</b>\n" +
+			"Посилання на правила:  <b>%s</b>\n" +
 			"Пісочниця:             <b>%s</b>\n" +
 			"Тривалість пісочниці:  <b>%dh</b>\n" +
 			"Мова:                  <b>%s</b>",
 		"settings_on":     "увімк.",
 		"settings_off":    "вимк.",
+		"settings_default": "стандартний",
+		"settings_custom":  "власний",
+		"settings_set":     "задано",
+		"settings_not_set": "не задано",
 		"settings_lang_en": "🇬🇧 English",
 		"settings_lang_uk": "🇺🇦 Українська",
 
@@ -411,6 +472,9 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set sandbox_duration &lt;годин&gt;
 /tgwatch_set verification on|off
 /tgwatch_set verification_timeout &lt;хвилин&gt;
+/tgwatch_set welcome &lt;текст&gt;|off — привітання для нових учасників
+/tgwatch_set rules &lt;текст&gt;|off — правила чату, які треба прийняти
+/tgwatch_set rules_url &lt;посилання&gt;|off — кнопка-посилання «Правила чату»
 /tgwatch_set name_filter on|off
 /tgwatch_unrestrict — відповісти на повідомлення, щоб зняти обмеження
 

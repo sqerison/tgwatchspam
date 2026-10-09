@@ -670,6 +670,33 @@ digital nomad</pre>
   <pre>/tgwatch_set verification on
 /tgwatch_set verification_timeout 5    # minutes before auto-kick (default: 2)</pre>
 
+  <h3><span class="en-only">Welcome Message &amp; Chat Rules (FEAT-017)</span><span class="uk-only">Привітання та правила чату (FEAT-017)</span></h3>
+  <p class="en-only">Each chat can replace the built-in verification text with its own greeting and attach chat rules. The rules appear inside the verification message as a collapsed quote that expands on tap, and the button changes to <em>"✅ I accept the rules"</em>. An optional link button <em>"📖 Chat rules"</em> opens a full article (Telegraph page, pinned post, website).</p>
+  <p class="uk-only">Кожен чат може замінити стандартний текст верифікації власним привітанням і додати правила чату. Правила показуються у повідомленні верифікації як згорнута цитата, що розгортається по тапу, а кнопка змінюється на <em>"✅ Я приймаю правила"</em>. Додаткова кнопка-посилання <em>"📖 Правила чату"</em> відкриває повну статтю (сторінка Telegraph, закріплений пост, сайт).</p>
+
+  <pre>/tgwatch_set welcome &lt;b&gt;Hi, {name}!&lt;/b&gt; Read the rules and accept them within {timeout} min.
+/tgwatch_set rules
+1. No advertising
+2. Never pay deposits to strangers
+/tgwatch_set rules_url https://example.com/rules
+
+/tgwatch_set welcome off      # back to the built-in text
+/tgwatch_set rules off        # remove the rules
+/tgwatch_set rules_url off    # remove the link button</pre>
+
+  <ul class="en-only">
+    <li>Placeholders in the welcome text: <code>{name}</code> (member's first name) and <code>{timeout}</code> (minutes left to accept).</li>
+    <li>Allowed HTML tags: <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;a href&gt;</code>. Rules may span several lines. Limits: rules 3000 characters, welcome 600.</li>
+    <li>After every change the bot posts a preview. If Telegram rejects the text (for example an unclosed tag), nothing is saved.</li>
+    <li>The message is shown only when verification is on. Give people time to read: raise <code>verification_timeout</code> to 5–10 minutes.</li>
+  </ul>
+  <ul class="uk-only">
+    <li>Підстановки в тексті привітання: <code>{name}</code> (ім'я учасника) та <code>{timeout}</code> (хвилин на прийняття).</li>
+    <li>Дозволені HTML-теги: <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;a href&gt;</code>. Правила можуть бути на кілька рядків. Обмеження: правила — 3000 символів, привітання — 600.</li>
+    <li>Після кожної зміни бот надсилає попередній перегляд. Якщо Telegram відхиляє текст (наприклад, незакритий тег), нічого не зберігається.</li>
+    <li>Повідомлення показується лише при ввімкненій верифікації. Дайте людям час прочитати: збільште <code>verification_timeout</code> до 5–10 хвилин.</li>
+  </ul>
+
   <h3>Sandbox Mode (FEAT-007)</h3>
   <p class="en-only">After passing verification (or immediately if verification is off), new members can be placed in sandbox mode. During sandbox they can post regular text messages but cannot send media, stickers, GIFs, or link previews.</p>
   <p class="uk-only">Після верифікації (або одразу, якщо верифікація вимкнена) нові учасники можуть бути поміщені в режим пісочниці. У цьому режимі вони можуть надсилати текстові повідомлення, але не можуть надсилати медіа, стікери, GIF або попередній перегляд посилань.</p>
@@ -807,6 +834,9 @@ digital nomad</pre>
     </tr>
     <tr><td><code>/tgwatch_set verification on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Require new members to tap a button before posting</span><span class="uk-only">Вимагати від нових учасників натиснути кнопку перед постінгом</span></td></tr>
     <tr><td><code>/tgwatch_set verification_timeout &lt;min&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Minutes to verify before auto-kick (default: 2)</span><span class="uk-only">Хвилин на верифікацію до авто-виключення (за замовч.: 2)</span></td></tr>
+    <tr><td><code>/tgwatch_set welcome &lt;text&gt;|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Custom greeting for new members; placeholders <code>{name}</code>, <code>{timeout}</code></span><span class="uk-only">Власне привітання для нових учасників; підстановки <code>{name}</code>, <code>{timeout}</code></span></td></tr>
+    <tr><td><code>/tgwatch_set rules &lt;text&gt;|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Chat rules shown as a tap-to-expand quote; button becomes "I accept the rules"</span><span class="uk-only">Правила чату у вигляді цитати, що розгортається; кнопка стає «Я приймаю правила»</span></td></tr>
+    <tr><td><code>/tgwatch_set rules_url &lt;link&gt;|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Adds a "Chat rules" link button</span><span class="uk-only">Додає кнопку-посилання «Правила чату»</span></td></tr>
     <tr><td><code>/tgwatch_set sandbox on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Restrict new members to text-only for sandbox_duration</span><span class="uk-only">Обмежити нових учасників до тексту на sandbox_duration</span></td></tr>
     <tr><td><code>/tgwatch_set sandbox_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">How long sandbox lasts (default: 24h)</span><span class="uk-only">Тривалість пісочниці (за замовч.: 24г)</span></td></tr>
     <tr><td><code>/tgwatch_set name_filter on|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Kick new members whose name/username matches spam filters</span><span class="uk-only">Виключати нових учасників, чиє ім'я/нікнейм відповідає фільтрам</span></td></tr>
@@ -888,6 +918,9 @@ digital nomad</pre>
     <tr><td><span class="en-only">Mute duration</span><span class="uk-only">Тривалість заглушення</span></td><td><code>24h</code></td><td><code>/tgwatch_set mute_duration</code></td></tr>
     <tr><td><span class="en-only">Verification</span><span class="uk-only">Верифікація</span></td><td><code>off</code></td><td><code>/tgwatch_set verification</code></td></tr>
     <tr><td><span class="en-only">Verification timeout</span><span class="uk-only">Таймаут верифікації</span></td><td><code>2 min</code></td><td><code>/tgwatch_set verification_timeout</code></td></tr>
+    <tr><td><span class="en-only">Welcome text</span><span class="uk-only">Текст привітання</span></td><td><span class="en-only">built-in</span><span class="uk-only">стандартний</span></td><td><code>/tgwatch_set welcome</code></td></tr>
+    <tr><td><span class="en-only">Chat rules</span><span class="uk-only">Правила чату</span></td><td><span class="en-only">none</span><span class="uk-only">немає</span></td><td><code>/tgwatch_set rules</code></td></tr>
+    <tr><td><span class="en-only">Rules link</span><span class="uk-only">Посилання на правила</span></td><td><span class="en-only">none</span><span class="uk-only">немає</span></td><td><code>/tgwatch_set rules_url</code></td></tr>
     <tr><td><span class="en-only">Sandbox</span><span class="uk-only">Пісочниця</span></td><td><code>off</code></td><td><code>/tgwatch_set sandbox</code></td></tr>
     <tr><td><span class="en-only">Sandbox duration</span><span class="uk-only">Тривалість пісочниці</span></td><td><code>24h</code></td><td><code>/tgwatch_set sandbox_duration</code></td></tr>
     <tr><td><span class="en-only">Name filter</span><span class="uk-only">Фільтр імен</span></td><td><code>on</code></td><td><code>/tgwatch_set name_filter</code></td></tr>
@@ -923,6 +956,7 @@ digital nomad</pre>
     <tr><td><code>FEAT-014</code></td><td><span class="en-only">Spam notification in chat</span><span class="uk-only">Сповіщення про спам у чаті</span></td><td><code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-015</code></td><td><span class="en-only">Button verification for new members</span><span class="uk-only">Верифікація кнопкою для нових учасників</span></td><td><code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-016</code></td><td><span class="en-only">Per-chat language switching (🇬🇧 / 🇺🇦)</span><span class="uk-only">Перемикання мови бота (🇬🇧 / 🇺🇦)</span></td><td><code>internal/i18n/i18n.go</code>, <code>internal/bot/handlers.go</code></td></tr>
+    <tr><td><code>FEAT-017</code></td><td><span class="en-only">Custom welcome message and chat rules</span><span class="uk-only">Власне привітання та правила чату</span></td><td><code>internal/bot/handlers.go</code>, <code>internal/storage/storage.go</code></td></tr>
   </table>
   </div>
 
