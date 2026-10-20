@@ -1,6 +1,6 @@
 # Epic: AI-Assisted Spam Analysis
 
-**Status:** Planned
+**Status:** Implemented (2026-10-20) on branch `feat/notification-autodelete` (together with FEAT-018) — see FEATURES.md for locations. Differences from this spec are listed in "Implementation notes" at the end.
 **Next Feature ID at time of writing:** FEAT-016
 **Feature range:** FEAT-016 – FEAT-020 (spec numbering) → **FEAT-019 – FEAT-023** after renumbering; Phase 2 adds FEAT-024 – FEAT-025
 
@@ -335,7 +335,7 @@ Callback data for the buttons: `ar:<s|n>:<chatID>:<messageID>` fits in 64 bytes;
 
 ### Privacy
 
-Every scanned message leaves the server and goes to the AI provider. The chat rules must say so before `ai_scan` is enabled.
+Every scanned message leaves the server and goes to the AI provider. For a **public** group (anyone can read it, e.g. @ua_milano) this adds no real exposure, so the Gemini free tier — whose inputs Google may use for training and human review — is acceptable there (decided 2026-10-20). For a **private** group, prefer a paid tier, where inputs are not used for training. A one-line mention in the chat rules is recommended (EU transparency for automated moderation), not required by the bot.
 
 ### Open questions
 
@@ -345,3 +345,16 @@ Every scanned message leaves the server and goes to the AI provider. The chat ru
 4. Daily budget per chat — what number?
 5. ~~Where `review` requests go~~ — decided: `review_to chat|dm <logins>|group <id>`, default `chat`, exactly one destination at a time; `group` may be any group with the bot, even a one-person one.
 6. In `review` mode, should **Spam ✓** apply the chat's `action` (default ban), or only delete the message and let the admin decide on the ban separately?
+
+---
+
+## Implementation notes (2026-10-20)
+
+- Phase 1 and Phase 2 share one flow: `/tgwatch_analyze` creates the same review request as the automatic scan, posted where the command was used.
+- Review buttons: **⛔ Spam** (delete + chat `action`), **🗑 Delete only** (no penalty, labelled `rule`), **✅ Not spam**. This answers open question 6: the admin chooses between ban and plain deletion per message.
+- Verdict categories are `ok | spam | scam | rule`; `rule` is for legitimate members breaking a chat rule (e.g. short-term rental requests).
+- `ai_notes` — admin instructions sent only to the model.
+- Few-shot: newest 8 spam/scam, 4 rule, 8 ok examples per chat; keyword-filter blocks from `spam_log` fill in while there are few confirmed spam examples.
+- Defaults: `ai_scan off`, threshold 80%, 200 checks/day, scope `all` (`new` = joined in the last 30 days, as seen by the bot), `review_to chat`, 24h review expiry, messages under 20 characters are not checked, `/tgwatch_analyze` cooldown 10s per chat.
+- Toggle state lives in `pending_reviews.selected` (not in memory), so keyword selection survives restarts.
+- Not implemented: per-chat model override, corpus export, `/tgwatch_show corpus`.

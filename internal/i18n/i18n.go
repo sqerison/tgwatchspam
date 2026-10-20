@@ -112,7 +112,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Usage: /tgwatch_clear words  or  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|notify_delete|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
+		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|notify_delete|ai_scan|ai_threshold|ai_limit|ai_scope|ai_notes|review_to|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
 		"set_action_valid": "Valid actions:\n<code>delete</code> — remove message only\n<code>mute</code> — remove + mute for N hours\n<code>kick</code> — remove + kick (can rejoin)\n<code>ban</code> — remove + permanent ban",
 		"set_action_fail":          "Failed to update action.",
 		"set_action_ok":            "Spam action set to <b>%s</b>.",
@@ -146,7 +146,79 @@ var translations = map[Lang]map[string]string{
 		"set_notify_del_fail":    "Failed to update notification auto-delete.",
 		"set_notify_del_ok":      "Spam notifications will be deleted after <b>%d minute(s)</b>.",
 		"set_notify_del_off":     "Spam notifications will stay in the chat.",
-		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+
+		// AI analysis [FEAT-020 – FEAT-025]
+		"ai_not_configured": "AI analysis is not configured. The bot operator must set AI_PROVIDER and AI_API_KEY.",
+		"analyze_usage":     "Reply to a text message with /tgwatch_analyze to ask the AI about it.",
+		"analyze_wait":      "Please wait a few seconds before the next analysis.",
+		"analyze_fail":      "AI request failed:\n<code>%s</code>",
+		"ai_limit_reached":  "🤖 The daily limit of %d automatic AI checks for this chat is used up. Checks resume tomorrow (UTC). Change it with <code>/tgwatch_set ai_limit</code>.",
+		"ai_warn":           "⚠️ Be careful: this message may be a scam. Never pay deposits or prepayments, and keep the conversation in the chat.",
+		"ai_warn_rule":      "ℹ️ This message may break the chat rules.",
+		"verdict_ok":        "looks fine",
+		"verdict_spam":      "spam",
+		"verdict_scam":      "possible scam",
+		"verdict_rule":      "rule violation",
+		"review_title":      "🤖 <b>AI: %s</b> (%d%%)",
+		"review_author":     "Author: %s",
+		"review_reason":     "Why: %s",
+		"review_rule":       "Rule: %s",
+		"review_link":       "<a href=\"%s\">Open the message</a>",
+		"review_deleted":    "<i>The message was already deleted automatically.</i>",
+		"review_expired":    "⌛ No decision within 24 hours — nothing was done.",
+		"review_decided_spam": "⛔ Spam — %s. The message was removed and the chat's spam action applied.",
+		"review_decided_rule": "🗑 Deleted without penalty — %s.",
+		"review_decided_ok":   "✅ Not spam — %s.",
+		"review_already":      "Already decided by %s.",
+		"review_admin_only":   "Only admins of the chat can decide.",
+		"btn_review_spam":     "⛔ Spam",
+		"btn_review_delete":   "🗑 Delete only",
+		"btn_review_ok":       "✅ Not spam",
+		"kw_prompt":           "Pick words or phrases to add to the filter — nothing is added until you confirm.\n🟢 rare in normal messages · 🟡 sometimes · 🔴 common, risky",
+		"kw_false_hits":       "(%d false hits)",
+		"btn_kw_add":          "➕ Add selected (%d)",
+		"btn_kw_done":         "Done",
+		"kw_select_one":       "Select at least one word first.",
+		"kw_confirm":          "Add %d to the filter?\n%s",
+		"btn_kw_confirm":      "✅ Confirm",
+		"btn_kw_back":         "↩ Back",
+		"kw_added":            "Added to the filter: %s",
+		"set_ai_fail":         "Failed to save the setting.",
+		"set_ai_scan_usage": "Usage: /tgwatch_set ai_scan off|review|warn|delete\n" +
+			"<code>review</code> — the message stays, admins get a request to decide\n" +
+			"<code>warn</code> — the bot replies with a short warning\n" +
+			"<code>delete</code> — the message is deleted, admins confirm afterwards\n" +
+			"Only messages that passed the word/regex filter are checked.",
+		"set_ai_scan_ok":         "AI scan set to <b>%s</b>.",
+		"set_ai_threshold_usage": "Usage: /tgwatch_set ai_threshold &lt;50–100&gt; — minimum model confidence, in percent, before the bot acts (default 80).",
+		"set_ai_threshold_ok":    "AI confidence threshold set to <b>%d%%</b>.",
+		"set_ai_limit_usage":     "Usage: /tgwatch_set ai_limit &lt;n&gt; — maximum automatic AI checks per day for this chat (default 200).",
+		"set_ai_limit_ok":        "Daily AI limit set to <b>%d</b> checks.",
+		"set_ai_scope_usage":     "Usage: /tgwatch_set ai_scope all|new — check everyone, or only members who joined in the last %d days.",
+		"set_ai_scope_ok_all":    "The AI will check messages from <b>all members</b>.",
+		"set_ai_scope_ok_new":    "The AI will check messages only from members who joined in the last <b>%d days</b>.",
+		"set_ai_notes_ok":        "Saved. These notes are sent to the AI with every check; members do not see them.",
+		"set_ai_notes_off":       "AI notes removed.",
+		"review_to_usage": "Usage:\n<code>/tgwatch_set review_to chat</code> — in this group, as a reply to the message\n" +
+			"<code>/tgwatch_set review_to dm @admin1 @admin2</code> — private messages to these admins\n" +
+			"<code>/tgwatch_set review_to group &lt;chat_id&gt;</code> — any group the bot is in",
+		"review_to_chat_ok":          "Review requests will be posted in this chat.",
+		"review_to_dm_ok":            "Review requests will be sent privately to: %s.",
+		"review_to_dm_unknown":       "Not admins of this chat (or unknown): %s. Nothing was changed.",
+		"review_to_dm_undeliverable": "⚠️ The bot cannot write to %s yet. Each of them must open %s and press Start once.",
+		"review_to_group_ok":         "Review requests will be sent to group <code>%d</code>.",
+		"review_to_group_fail":       "The bot cannot post to <code>%d</code>. Add the bot to that group and try again. Nothing was changed.",
+		"review_dm_test":             "🤖 You will receive AI review requests for <b>%s</b> here.",
+		"review_group_test":          "🤖 This group will receive AI review requests for <b>%s</b>.",
+		"show_settings_ai": "\n\n<b>AI</b>\n" +
+			"Model:                 <b>%s</b>\n" +
+			"Scan:                  <b>%s</b>\n" +
+			"Threshold:             <b>%d%%</b>\n" +
+			"Daily limit:           <b>%d</b> (used today: %d)\n" +
+			"Scope:                 <b>%s</b>\n" +
+			"AI notes:              <b>%s</b>\n" +
+			"Review requests:       <b>%s</b>",
+		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>ai_scan</code>, <code>ai_threshold</code>, <code>ai_limit</code>, <code>ai_scope</code>, <code>ai_notes</code>, <code>review_to</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
 
 		// Custom welcome + rules [FEAT-017]
 		"set_welcome_usage": "Usage: /tgwatch_set welcome &lt;text&gt; — greeting shown to new members above the rules.\n" +
@@ -246,6 +318,15 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set action ban — remove + permanent ban
 /tgwatch_set mute_duration &lt;hours&gt; — mute duration (default 24h)
 /tgwatch_set notify_delete &lt;minutes&gt;|off — auto-delete spam notifications
+
+<b>AI</b>
+/tgwatch_analyze — reply to a message: ask the AI about it
+/tgwatch_set ai_scan off|review|warn|delete — check messages the filter missed
+/tgwatch_set review_to chat|dm @admin…|group &lt;id&gt; — where review requests go
+/tgwatch_set ai_threshold &lt;50–100&gt; — minimum confidence (default 80)
+/tgwatch_set ai_limit &lt;n&gt; — automatic checks per day (default 200)
+/tgwatch_set ai_scope all|new — everyone, or members who joined recently
+/tgwatch_set ai_notes &lt;text&gt;|off — instructions for the AI only
 
 <b>New member controls</b>
 /tgwatch_set sandbox on|off
@@ -350,7 +431,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Використання: /tgwatch_clear words  або  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|notify_delete|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
+		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|notify_delete|ai_scan|ai_threshold|ai_limit|ai_scope|ai_notes|review_to|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
 		"set_action_valid": "Допустимі дії:\n<code>delete</code> — тільки видалити повідомлення\n<code>mute</code> — видалити + замовчати на N годин\n<code>kick</code> — видалити + виключити (може повернутись)\n<code>ban</code> — видалити + заблокувати назавжди",
 		"set_action_fail":          "Не вдалося оновити дію.",
 		"set_action_ok":            "Дію для спаму встановлено: <b>%s</b>.",
@@ -384,7 +465,79 @@ var translations = map[Lang]map[string]string{
 		"set_notify_del_fail":    "Не вдалося змінити автовидалення сповіщень.",
 		"set_notify_del_ok":      "Сповіщення про спам видалятимуться через <b>%d хв.</b>",
 		"set_notify_del_off":     "Сповіщення про спам залишатимуться в чаті.",
-		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+
+		// AI-аналіз [FEAT-020 – FEAT-025]
+		"ai_not_configured": "AI-аналіз не налаштовано. Власник бота має задати AI_PROVIDER і AI_API_KEY.",
+		"analyze_usage":     "Дайте відповідь на текстове повідомлення командою /tgwatch_analyze, щоб спитати AI.",
+		"analyze_wait":      "Зачекайте кілька секунд перед наступним аналізом.",
+		"analyze_fail":      "Помилка запиту до AI:\n<code>%s</code>",
+		"ai_limit_reached":  "🤖 Денний ліміт у %d автоматичних AI-перевірок для цього чату вичерпано. Перевірки відновляться завтра (UTC). Змінити: <code>/tgwatch_set ai_limit</code>.",
+		"ai_warn":           "⚠️ Обережно: це повідомлення може бути шахрайством. Не платіть завдатків і передоплат, ведіть розмову в чаті.",
+		"ai_warn_rule":      "ℹ️ Це повідомлення може порушувати правила чату.",
+		"verdict_ok":        "схоже на нормальне",
+		"verdict_spam":      "спам",
+		"verdict_scam":      "можливий розвод",
+		"verdict_rule":      "порушення правил",
+		"review_title":      "🤖 <b>AI: %s</b> (%d%%)",
+		"review_author":     "Автор: %s",
+		"review_reason":     "Чому: %s",
+		"review_rule":       "Правило: %s",
+		"review_link":       "<a href=\"%s\">Відкрити повідомлення</a>",
+		"review_deleted":    "<i>Повідомлення вже видалено автоматично.</i>",
+		"review_expired":    "⌛ За 24 години рішення не прийняли — нічого не зроблено.",
+		"review_decided_spam": "⛔ Спам — %s. Повідомлення видалено, застосовано дію чату для спаму.",
+		"review_decided_rule": "🗑 Видалено без покарання — %s.",
+		"review_decided_ok":   "✅ Не спам — %s.",
+		"review_already":      "Уже вирішив(ла) %s.",
+		"review_admin_only":   "Вирішувати можуть лише адміни чату.",
+		"btn_review_spam":     "⛔ Спам",
+		"btn_review_delete":   "🗑 Лише видалити",
+		"btn_review_ok":       "✅ Не спам",
+		"kw_prompt":           "Виберіть слова чи фрази для фільтра — нічого не додається без підтвердження.\n🟢 рідко в нормальних повідомленнях · 🟡 іноді · 🔴 часто, ризиковано",
+		"kw_false_hits":       "(%d хибн. збігів)",
+		"btn_kw_add":          "➕ Додати вибрані (%d)",
+		"btn_kw_done":         "Готово",
+		"kw_select_one":       "Спершу виберіть хоча б одне слово.",
+		"kw_confirm":          "Додати %d до фільтра?\n%s",
+		"btn_kw_confirm":      "✅ Підтвердити",
+		"btn_kw_back":         "↩ Назад",
+		"kw_added":            "Додано до фільтра: %s",
+		"set_ai_fail":         "Не вдалося зберегти налаштування.",
+		"set_ai_scan_usage": "Використання: /tgwatch_set ai_scan off|review|warn|delete\n" +
+			"<code>review</code> — повідомлення лишається, адміни отримують запит на рішення\n" +
+			"<code>warn</code> — бот відповідає коротким попередженням\n" +
+			"<code>delete</code> — повідомлення видаляється, адміни підтверджують потім\n" +
+			"Перевіряються лише повідомлення, які пропустив фільтр слів/regex.",
+		"set_ai_scan_ok":         "AI-сканування: <b>%s</b>.",
+		"set_ai_threshold_usage": "Використання: /tgwatch_set ai_threshold &lt;50–100&gt; — мінімальна впевненість моделі у відсотках, з якої бот діє (за замовч. 80).",
+		"set_ai_threshold_ok":    "Поріг впевненості AI: <b>%d%%</b>.",
+		"set_ai_limit_usage":     "Використання: /tgwatch_set ai_limit &lt;n&gt; — максимум автоматичних AI-перевірок на день для цього чату (за замовч. 200).",
+		"set_ai_limit_ok":        "Денний ліміт AI: <b>%d</b> перевірок.",
+		"set_ai_scope_usage":     "Використання: /tgwatch_set ai_scope all|new — перевіряти всіх або лише тих, хто вступив за останні %d днів.",
+		"set_ai_scope_ok_all":    "AI перевірятиме повідомлення <b>усіх учасників</b>.",
+		"set_ai_scope_ok_new":    "AI перевірятиме лише тих, хто вступив за останні <b>%d днів</b>.",
+		"set_ai_notes_ok":        "Збережено. Ці нотатки йдуть до AI з кожною перевіркою; учасники їх не бачать.",
+		"set_ai_notes_off":       "Нотатки для AI прибрано.",
+		"review_to_usage": "Використання:\n<code>/tgwatch_set review_to chat</code> — у цій групі, відповіддю на повідомлення\n" +
+			"<code>/tgwatch_set review_to dm @admin1 @admin2</code> — в особисті цим адмінам\n" +
+			"<code>/tgwatch_set review_to group &lt;chat_id&gt;</code> — у будь-яку групу, де є бот",
+		"review_to_chat_ok":          "Запити на перевірку надсилатимуться в цей чат.",
+		"review_to_dm_ok":            "Запити на перевірку надсилатимуться в особисті: %s.",
+		"review_to_dm_unknown":       "Не адміни цього чату (або невідомі): %s. Нічого не змінено.",
+		"review_to_dm_undeliverable": "⚠️ Бот поки не може написати %s. Кожен має один раз відкрити %s і натиснути Start.",
+		"review_to_group_ok":         "Запити на перевірку надсилатимуться в групу <code>%d</code>.",
+		"review_to_group_fail":       "Бот не може писати в <code>%d</code>. Додайте бота в ту групу і спробуйте знову. Нічого не змінено.",
+		"review_dm_test":             "🤖 Сюди надходитимуть AI-запити на перевірку для <b>%s</b>.",
+		"review_group_test":          "🤖 У цю групу надходитимуть AI-запити на перевірку для <b>%s</b>.",
+		"show_settings_ai": "\n\n<b>AI</b>\n" +
+			"Модель:                <b>%s</b>\n" +
+			"Сканування:            <b>%s</b>\n" +
+			"Поріг:                 <b>%d%%</b>\n" +
+			"Денний ліміт:          <b>%d</b> (сьогодні: %d)\n" +
+			"Кого перевіряти:       <b>%s</b>\n" +
+			"Нотатки для AI:        <b>%s</b>\n" +
+			"Запити на перевірку:   <b>%s</b>",
+		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>ai_scan</code>, <code>ai_threshold</code>, <code>ai_limit</code>, <code>ai_scope</code>, <code>ai_notes</code>, <code>review_to</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
 
 		// Custom welcome + rules [FEAT-017]
 		"set_welcome_usage": "Використання: /tgwatch_set welcome &lt;текст&gt; — привітання для нових учасників над правилами.\n" +
@@ -484,6 +637,15 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set action ban — видалити + заблокувати назавжди
 /tgwatch_set mute_duration &lt;годин&gt; — тривалість заглушення (за замовч. 24г)
 /tgwatch_set notify_delete &lt;хвилин&gt;|off — автовидалення сповіщень про спам
+
+<b>AI</b>
+/tgwatch_analyze — відповіддю на повідомлення: спитати AI
+/tgwatch_set ai_scan off|review|warn|delete — перевіряти те, що пропустив фільтр
+/tgwatch_set review_to chat|dm @admin…|group &lt;id&gt; — куди йдуть запити на перевірку
+/tgwatch_set ai_threshold &lt;50–100&gt; — мінімальна впевненість (за замовч. 80)
+/tgwatch_set ai_limit &lt;n&gt; — автоматичних перевірок на день (за замовч. 200)
+/tgwatch_set ai_scope all|new — усі або нещодавно вступилі
+/tgwatch_set ai_notes &lt;текст&gt;|off — інструкції лише для AI
 
 <b>Контроль нових учасників</b>
 /tgwatch_set sandbox on|off

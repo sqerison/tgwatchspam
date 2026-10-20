@@ -332,6 +332,7 @@
   <a href="#admin-auth"><span class="en-only">Admin Authorization</span><span class="uk-only">Авторизація адмінів</span></a>
   <a href="#spam-log"><span class="en-only">Spam Log</span><span class="uk-only">Журнал спаму</span></a>
   <a href="#multi-chat"><span class="en-only">Multi-Chat</span><span class="uk-only">Декілька чатів</span></a>
+  <a href="#ai"><span class="en-only">AI Analysis</span><span class="uk-only">AI-аналіз</span></a>
 
   <div class="nav-section en-only">Reference</div>
   <div class="nav-section uk-only">Довідник</div>
@@ -780,6 +781,40 @@ digital nomad</pre>
   <p class="uk-only">Бот запитає підтвердження перед перезаписом. Існуючі дані в цільовому чаті замінюються, а не об'єднуються.</p>
 
   <!-- ── Commands ── -->
+  <!-- ── AI ── -->
+  <h2 id="ai"><span class="en-only">AI Spam Analysis (FEAT-019 – FEAT-025)</span><span class="uk-only">AI-аналіз спаму (FEAT-019 – FEAT-025)</span></h2>
+  <p class="en-only">The word/regex filter only catches spam it already knows. With an AI provider configured (<code>AI_PROVIDER</code> + <code>AI_API_KEY</code>), messages that <strong>passed</strong> the filter can be classified by a model as <code>ok</code>, <code>spam</code>, <code>scam</code> (deposits, "write me in DM", cash-for-card) or <code>rule</code> (breaks a chat rule). Every prompt includes the chat rules, optional admin notes and up to 20 messages admins already labelled in this chat.</p>
+  <p class="uk-only">Фільтр слів і regex ловить лише відомий спам. Якщо налаштовано AI-провайдера (<code>AI_PROVIDER</code> + <code>AI_API_KEY</code>), повідомлення, які <strong>пройшли</strong> фільтр, може класифікувати модель: <code>ok</code>, <code>spam</code>, <code>scam</code> (завдатки, «пишіть в особисті», обмін готівки на карту) або <code>rule</code> (порушення правила чату). У кожен запит до моделі входять правила чату, нотатки адмінів і до 20 повідомлень, які адміни вже позначили в цьому чаті.</p>
+  <pre>/tgwatch_analyze                          # reply to a message — ask the AI
+/tgwatch_set ai_scan review               # off | review | warn | delete
+/tgwatch_set review_to group -1001234567890   # chat | dm @admin1 @admin2 | group &lt;id&gt;
+/tgwatch_set ai_threshold 80              # minimum confidence, %
+/tgwatch_set ai_limit 200                 # automatic checks per day
+/tgwatch_set ai_scope new                 # all | new (joined in the last 30 days)
+/tgwatch_set ai_notes short-term rental requests are "rule"</pre>
+
+  <h3><span class="en-only">Modes</span><span class="uk-only">Режими</span></h3>
+  <ul class="en-only">
+    <li><code>review</code> — nothing visible happens to the message; admins get a review request with <strong>⛔ Spam</strong> (delete + the chat's spam action), <strong>🗑 Delete only</strong> and <strong>✅ Not spam</strong>. A good way to start: you see how often the model is right before letting it act.</li>
+    <li><code>warn</code> — the bot replies with a short warning ("may be a scam, never pay deposits"), no buttons. The warning deletes itself.</li>
+    <li><code>delete</code> — the message is deleted immediately, admins confirm afterwards.</li>
+  </ul>
+  <ul class="uk-only">
+    <li><code>review</code> — з повідомленням нічого не відбувається; адміни отримують запит із кнопками <strong>⛔ Спам</strong> (видалити + дія чату для спаму), <strong>🗑 Лише видалити</strong> і <strong>✅ Не спам</strong>. Добрий старт: видно, як часто модель має рацію, перш ніж дозволити їй діяти.</li>
+    <li><code>warn</code> — бот відповідає коротким попередженням («може бути розвод, не платіть завдатків») без кнопок. Попередження видаляється саме.</li>
+    <li><code>delete</code> — повідомлення видаляється одразу, адміни підтверджують потім.</li>
+  </ul>
+  <p class="en-only">Review requests go to exactly one place: the group itself (<code>chat</code>, default), private messages to listed admins (<code>dm</code> — they must press Start in the bot once) or any group the bot is in (<code>group</code> — even a group with just you and the bot). Only admins of the source chat can press the buttons, and the first decision resolves every copy. Unanswered requests expire after 24 hours.</p>
+  <p class="uk-only">Запити на перевірку йдуть рівно в одне місце: у саму групу (<code>chat</code>, за замовчуванням), в особисті вказаним адмінам (<code>dm</code> — кожен має один раз натиснути Start у бота) або в будь-яку групу з ботом (<code>group</code> — навіть групу, де лише ви і бот). Натискати кнопки можуть тільки адміни вихідного чату; перше рішення закриває всі копії. Запити без відповіді зникають через 24 години.</p>
+
+  <h3><span class="en-only">Learning from admins</span><span class="uk-only">Навчання на рішеннях адмінів</span></h3>
+  <p class="en-only">The model is not retrained. Instead, every decision is stored as a labelled example and added to later prompts, and after <strong>⛔ Spam</strong> the bot suggests words or phrases for the filter as toggle buttons. Nothing is pre-selected or added automatically: each suggestion has a risk marker (🟢 rare · 🟡 sometimes · 🔴 common) and is tested against the messages admins marked "Not spam" — a phrase that would have hit one is shown as 🔴 with the number of false hits. Adding needs one more confirmation.</p>
+  <p class="uk-only">Модель не перенавчається. Натомість кожне рішення зберігається як приклад і додається до наступних запитів, а після <strong>⛔ Спам</strong> бот пропонує слова чи фрази для фільтра кнопками-перемикачами. Нічого не вибрано і не додається автоматично: кожна пропозиція має позначку ризику (🟢 рідко · 🟡 іноді · 🔴 часто) і перевіряється на повідомленнях, які адміни позначили «Не спам» — фраза, що зачепила б одне з них, позначається 🔴 з кількістю хибних збігів. Додавання потребує ще одного підтвердження.</p>
+  <div class="info">
+    <span class="en-only">Gemini's free tier is enough for a typical community chat, but Google may use free-tier inputs for training — fine for public groups; use a paid key for private ones.</span>
+    <span class="uk-only">Безкоштовного тарифу Gemini вистачає для звичайного чату спільноти, але Google може використовувати дані з нього для навчання — для публічних груп це нормально, для приватних краще платний ключ.</span>
+  </div>
+
   <h2 id="commands"><span class="en-only">Command Reference</span><span class="uk-only">Довідник команд</span></h2>
 
   <p class="en-only">All commands use the <code>/tgwatch_</code> prefix to avoid conflicts with other bots in the same group.</p>
@@ -863,6 +898,10 @@ digital nomad</pre>
     <tr><td><code>/tgwatch_log [n]</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Show last N spam entries (default 10, max 50)</span><span class="uk-only">Показати останні N записів спаму (за замовч. 10, макс. 50)</span></td></tr>
     <tr><td><code>/tgwatch_log clear</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Clear the spam log for this chat (inline button confirmation)</span><span class="uk-only">Очистити журнал спаму (підтвердження кнопкою)</span></td></tr>
     <tr><td><code>/tgwatch_clean</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Delete all bot replies and admin commands from chat</span><span class="uk-only">Видалити всі відповіді бота та команди адмінів</span></td></tr>
+    <tr><td><code>/tgwatch_analyze</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Reply to a message: ask the AI whether it is spam or a scam</span><span class="uk-only">Відповіддю на повідомлення: спитати AI, чи це спам або розвод</span></td></tr>
+    <tr><td><code>/tgwatch_set ai_scan off|review|warn|delete</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Automatic AI scan of messages the filter missed</span><span class="uk-only">Автоматична AI-перевірка повідомлень, які пропустив фільтр</span></td></tr>
+    <tr><td><code>/tgwatch_set review_to chat|dm @…|group &lt;id&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Where AI review requests go</span><span class="uk-only">Куди надсилати AI-запити на перевірку</span></td></tr>
+    <tr><td><code>/tgwatch_set ai_threshold|ai_limit|ai_scope|ai_notes</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Confidence threshold, daily limit, who is checked, notes for the AI</span><span class="uk-only">Поріг впевненості, денний ліміт, кого перевіряти, нотатки для AI</span></td></tr>
     <tr><td><code>/tgwatch_lang</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Choose bot language for this chat (🇬🇧 English / 🇺🇦 Українська)</span><span class="uk-only">Вибрати мову бота для цього чату (🇬🇧 English / 🇺🇦 Українська)</span></td></tr>
     <tr><td><code>/tgwatch_help</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Show all available commands in chat</span><span class="uk-only">Показати всі доступні команди в чаті</span></td></tr>
     <tr><td><code>/tgwatch_copy &lt;src_id&gt; &lt;dst_id&gt;</code></td><td><span class="badge badge-super">Superadmin</span></td><td><span class="en-only">Copy all settings from one chat to another (use in DM)</span><span class="uk-only">Копіювати налаштування між чатами (у DM)</span></td></tr>
@@ -906,6 +945,30 @@ digital nomad</pre>
       <td><code>info</code></td>
       <td><code>debug</code> / <code>info</code> / <code>warn</code> / <code>error</code></td>
     </tr>
+    <tr>
+      <td><code>AI_PROVIDER</code></td>
+      <td><span class="en-only">No</span><span class="uk-only">Ні</span></td>
+      <td><span class="en-only">empty (AI off)</span><span class="uk-only">порожньо (AI вимкнено)</span></td>
+      <td><code>gemini</code> / <code>claude</code> / <code>openai</code></td>
+    </tr>
+    <tr>
+      <td><code>AI_API_KEY</code></td>
+      <td><span class="en-only">With AI</span><span class="uk-only">Для AI</span></td>
+      <td>—</td>
+      <td><span class="en-only">API key of the provider</span><span class="uk-only">API-ключ провайдера</span></td>
+    </tr>
+    <tr>
+      <td><code>AI_MODEL</code></td>
+      <td><span class="en-only">No</span><span class="uk-only">Ні</span></td>
+      <td><code>gemini-3.1-flash-lite</code> / <code>claude-haiku-5-5</code></td>
+      <td><span class="en-only">Model override; required for <code>openai</code></span><span class="uk-only">Інша модель; обовʼязково для <code>openai</code></span></td>
+    </tr>
+    <tr>
+      <td><code>AI_BASE_URL</code></td>
+      <td><span class="en-only">No</span><span class="uk-only">Ні</span></td>
+      <td>—</td>
+      <td><span class="en-only">Endpoint override (OpenAI-compatible APIs, proxies)</span><span class="uk-only">Інша адреса API (OpenAI-сумісні, проксі)</span></td>
+    </tr>
   </table>
   </div>
 
@@ -932,6 +995,11 @@ digital nomad</pre>
     <tr><td><span class="en-only">Sandbox duration</span><span class="uk-only">Тривалість пісочниці</span></td><td><code>24h</code></td><td><code>/tgwatch_set sandbox_duration</code></td></tr>
     <tr><td><span class="en-only">Name filter</span><span class="uk-only">Фільтр імен</span></td><td><code>on</code></td><td><code>/tgwatch_set name_filter</code></td></tr>
     <tr><td><span class="en-only">Language</span><span class="uk-only">Мова</span></td><td><code>en</code></td><td><code>/tgwatch_lang</code></td></tr>
+    <tr><td><span class="en-only">AI scan</span><span class="uk-only">AI-сканування</span></td><td><code>off</code></td><td><code>/tgwatch_set ai_scan</code></td></tr>
+    <tr><td><span class="en-only">AI threshold</span><span class="uk-only">Поріг AI</span></td><td><code>80%</code></td><td><code>/tgwatch_set ai_threshold</code></td></tr>
+    <tr><td><span class="en-only">AI daily limit</span><span class="uk-only">Денний ліміт AI</span></td><td><code>200</code></td><td><code>/tgwatch_set ai_limit</code></td></tr>
+    <tr><td><span class="en-only">AI scope</span><span class="uk-only">Кого перевіряє AI</span></td><td><code>all</code></td><td><code>/tgwatch_set ai_scope</code></td></tr>
+    <tr><td><span class="en-only">Review requests</span><span class="uk-only">Запити на перевірку</span></td><td><code>chat</code></td><td><code>/tgwatch_set review_to</code></td></tr>
   </table>
   </div>
 
@@ -965,6 +1033,13 @@ digital nomad</pre>
     <tr><td><code>FEAT-016</code></td><td><span class="en-only">Per-chat language switching (🇬🇧 / 🇺🇦)</span><span class="uk-only">Перемикання мови бота (🇬🇧 / 🇺🇦)</span></td><td><code>internal/i18n/i18n.go</code>, <code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-017</code></td><td><span class="en-only">Custom welcome message and chat rules</span><span class="uk-only">Власне привітання та правила чату</span></td><td><code>internal/bot/handlers.go</code>, <code>internal/storage/storage.go</code></td></tr>
     <tr><td><code>FEAT-018</code></td><td><span class="en-only">Auto-delete spam notifications</span><span class="uk-only">Автовидалення сповіщень про спам</span></td><td><code>internal/bot/handlers.go</code>, <code>internal/storage/storage.go</code></td></tr>
+    <tr><td><code>FEAT-019</code></td><td><span class="en-only">Labelled corpus, review and usage storage</span><span class="uk-only">Корпус прикладів, запити на перевірку, облік викликів</span></td><td><code>internal/storage/ai.go</code></td></tr>
+    <tr><td><code>FEAT-020</code></td><td><span class="en-only">Provider-agnostic AI client (Gemini / OpenAI / Claude)</span><span class="uk-only">AI-клієнт для різних провайдерів (Gemini / OpenAI / Claude)</span></td><td><code>internal/ai/</code></td></tr>
+    <tr><td><code>FEAT-021</code></td><td><span class="en-only">/tgwatch_analyze command</span><span class="uk-only">Команда /tgwatch_analyze</span></td><td><code>internal/bot/ai.go</code></td></tr>
+    <tr><td><code>FEAT-022</code></td><td><span class="en-only">Admin-picked filter words (multi-select, risk markers)</span><span class="uk-only">Слова для фільтра на вибір адміна (мультивибір, позначки ризику)</span></td><td><code>internal/bot/ai.go</code></td></tr>
+    <tr><td><code>FEAT-023</code></td><td><span class="en-only">Few-shot examples from admin decisions</span><span class="uk-only">Приклади з рішень адмінів у запиті до моделі</span></td><td><code>internal/bot/ai.go</code>, <code>internal/ai/prompt.go</code></td></tr>
+    <tr><td><code>FEAT-024</code></td><td><span class="en-only">Automatic AI scan (review / warn / delete)</span><span class="uk-only">Автоматична AI-перевірка (review / warn / delete)</span></td><td><code>internal/bot/ai.go</code></td></tr>
+    <tr><td><code>FEAT-025</code></td><td><span class="en-only">Review requests: destination, buttons, expiry</span><span class="uk-only">Запити на перевірку: куди, кнопки, термін</span></td><td><code>internal/bot/ai.go</code></td></tr>
   </table>
   </div>
 

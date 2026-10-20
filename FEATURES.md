@@ -23,3 +23,10 @@ Search code with: `grep -r "FEAT-XXX" .`
 | FEAT-016 | Done   | internal/i18n/i18n.go, internal/storage/storage.go, internal/bot/handlers.go:handleLang | Per-chat language switching (🇬🇧 English / 🇺🇦 Ukrainian) |
 | FEAT-017 | Done   | internal/bot/handlers.go:verificationContent, handleSetVerificationText, internal/storage/storage.go:SetVerificationText | Custom welcome text + chat rules (expandable quote, accept button, rules link) |
 | FEAT-018 | Done   | internal/bot/handlers.go:handleMessage, deleteDueMessages, internal/storage/storage.go:ScheduleDeletion, PopDueDeletions | Auto-delete spam notifications after N minutes (`/tgwatch_set notify_delete`) |
+| FEAT-019 | Done   | internal/storage/ai.go | Labelled corpus (`flagged_messages`), `pending_reviews`, `members` join times, `ai_usage` daily budget |
+| FEAT-020 | Done   | internal/ai/ai.go, internal/ai/prompt.go | Provider-agnostic AI client (gemini / openai / claude) + prompt builder |
+| FEAT-021 | Done   | internal/bot/ai.go:handleAnalyze | `/tgwatch_analyze` — reply to a message to classify it |
+| FEAT-022 | Done   | internal/bot/ai.go:reviewKeywords, handleReviewCallback | Admin-picked filter words: multi-select, risk markers, false-hit check, confirm step |
+| FEAT-023 | Done   | internal/bot/ai.go:fewShotExamples | Admin decisions used as few-shot examples in the prompt |
+| FEAT-024 | Done   | internal/bot/ai.go:aiScan, handleSetAI | Automatic AI scan of unmatched messages (`ai_scan off\|review\|warn\|delete`, threshold, daily limit, scope, notes) |
+| FEAT-025 | Done   | internal/bot/ai.go:openReview, handleReviewCallback, expireReviews, handleSetReviewTo | Review requests: `review_to chat\|dm\|group`, Spam / Delete only / Not spam, 24h expiry |

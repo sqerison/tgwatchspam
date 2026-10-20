@@ -13,6 +13,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sqerison/tgwatchspam/internal/admin"
+	"github.com/sqerison/tgwatchspam/internal/ai"
 	"github.com/sqerison/tgwatchspam/internal/config"
 	"github.com/sqerison/tgwatchspam/internal/filter"
 	"github.com/sqerison/tgwatchspam/internal/i18n"
@@ -26,6 +27,9 @@ type handler struct {
 	admin    *admin.Admin
 	cfg      *config.Config
 	confirms confirmStore
+
+	ai           *ai.Client // nil when AI_PROVIDER is not configured [FEAT-020]
+	analyzeLimit cooldown   // [FEAT-021]
 }
 
 // confirmStore holds pending /clear and /copy confirmations (in-memory, 60s TTL).
@@ -64,8 +68,8 @@ func (c *confirmStore) pop(chatID, userID int64) (string, bool) {
 	return e.action, true
 }
 
-func newHandler(bot *tgbotapi.BotAPI, st *storage.Storage, flt *filter.Filter, adm *admin.Admin, cfg *config.Config) *handler {
-	return &handler{bot: bot, storage: st, filter: flt, admin: adm, cfg: cfg}
+func newHandler(bot *tgbotapi.BotAPI, st *storage.Storage, flt *filter.Filter, adm *admin.Admin, cfg *config.Config, aic *ai.Client) *handler {
+	return &handler{bot: bot, storage: st, filter: flt, admin: adm, cfg: cfg, ai: aic}
 }
 
 // lang returns the configured language for a chat.
@@ -231,6 +235,10 @@ func (h *handler) handle(update tgbotapi.Update) {
 
 // handleNewMember runs name filter, verification, and sandbox on join. [FEAT-007, FEAT-010, FEAT-015]
 func (h *handler) handleNewMember(chatID int64, user *tgbotapi.User) {
+	// Remember when the member joined, for ai_scope=new and the AI prompt [FEAT-024]
+	if err := h.storage.RecordJoin(chatID, user.ID, time.Now()); err != nil {
+		log.Printf("record join: %v", err)
+	}
 	settings, err := h.storage.GetSettings(chatID)
 	if err != nil {
 		log.Printf("get settings chatID=%d: %v", chatID, err)
@@ -302,10 +310,7 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 		return
 	}
 
-	text := msg.Text
-	if text == "" {
-		text = msg.Caption
-	}
+	text := messageText(msg)
 	if text == "" {
 		return
 	}
@@ -313,9 +318,6 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 	result, err := h.filter.Check(msg.Chat.ID, text)
 	if err != nil {
 		log.Printf("filter check: %v", err)
-		return
-	}
-	if result == nil {
 		return
 	}
 
@@ -326,27 +328,14 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 	}
 	lang := settings.Language
 
-	h.deleteMessage(msg.Chat.ID, msg.MessageID)
-
-	actionTaken := settings.Action
-	switch settings.Action {
-	case "ban":
-		h.banUser(msg.Chat.ID, msg.From.ID)
-	case "kick":
-		h.banUser(msg.Chat.ID, msg.From.ID)
-		h.unbanUser(msg.Chat.ID, msg.From.ID)
-	case "mute":
-		until := time.Now().Add(time.Duration(settings.MuteDurationH) * time.Hour)
-		h.muteUser(msg.Chat.ID, msg.From.ID, until)
-		if err := h.storage.AddPendingUnrestrict(msg.Chat.ID, msg.From.ID, until, "mute"); err != nil {
-			log.Printf("add pending unrestrict: %v", err)
-		}
-	case "delete":
-		// message already deleted above
-	default:
-		h.banUser(msg.Chat.ID, msg.From.ID)
-		actionTaken = "ban"
+	// Not in the word/regex lists: let the AI look at it, if enabled [FEAT-024]
+	if result == nil {
+		h.aiScan(msg, settings, text)
+		return
 	}
+
+	h.deleteMessage(msg.Chat.ID, msg.MessageID)
+	actionTaken := h.applyAction(msg.Chat.ID, msg.From.ID, settings)
 
 	entry := storage.SpamEntry{
 		ChatID:      msg.Chat.ID,
@@ -364,14 +353,8 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 		msg.From.ID, msg.From.UserName, msg.Chat.ID, result.Type, result.Pattern, actionTaken)
 
 	// Notify the group what happened and why [FEAT-014]
-	userRef := fmt.Sprintf("user #%d", msg.From.ID)
-	if msg.From.UserName != "" {
-		userRef = "@" + html.EscapeString(msg.From.UserName)
-	} else if msg.From.FirstName != "" {
-		userRef = html.EscapeString(msg.From.FirstName)
-	}
 	notifyID := h.sendHTML(msg.Chat.ID, i18n.Tf(lang, "spam_notification",
-		userRef,
+		userRef(msg.From),
 		result.Type,
 		html.EscapeString(result.Pattern),
 		actionLabel(lang, actionTaken, settings.MuteDurationH),
@@ -384,6 +367,30 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 			log.Printf("schedule notification deletion: %v", err)
 		}
 	}
+}
+
+// applyAction punishes the author according to the chat's spam action and returns
+// the action actually taken. The message itself must already be deleted. [FEAT-004]
+func (h *handler) applyAction(chatID, userID int64, settings *storage.Settings) string {
+	switch settings.Action {
+	case "ban":
+		h.banUser(chatID, userID)
+	case "kick":
+		h.banUser(chatID, userID)
+		h.unbanUser(chatID, userID)
+	case "mute":
+		until := time.Now().Add(time.Duration(settings.MuteDurationH) * time.Hour)
+		h.muteUser(chatID, userID, until)
+		if err := h.storage.AddPendingUnrestrict(chatID, userID, until, "mute"); err != nil {
+			log.Printf("add pending unrestrict: %v", err)
+		}
+	case "delete":
+		// nothing beyond deleting the message
+	default:
+		h.banUser(chatID, userID)
+		return "ban"
+	}
+	return settings.Action
 }
 
 // handleCommand routes slash commands to the appropriate handler.
@@ -454,6 +461,8 @@ func (h *handler) handleCommand(msg *tgbotapi.Message) {
 		h.handleClean(chatID) // [FEAT-013]
 	case "lang":
 		h.handleLang(msg) // [FEAT-016]
+	case "analyze":
+		h.handleAnalyze(msg) // [FEAT-021]
 	case "help":
 		h.handleHelp(chatID)
 	}
@@ -815,6 +824,9 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	case "welcome", "rules", "rules_url":
 		h.handleSetVerificationText(msg, key, val)
 
+	case "ai_scan", "ai_threshold", "ai_limit", "ai_scope", "ai_notes", "review_to": // [FEAT-024, FEAT-025]
+		h.handleSetAI(msg, key, val)
+
 	case "notify_delete": // [FEAT-018]
 		n := 0
 		if !strings.EqualFold(val, "off") {
@@ -950,7 +962,7 @@ func (h *handler) handleShowSettings(chatID int64) {
 		verification, s.VerificationTimeoutM,
 		welcome, rules, rulesURL,
 		sandbox, s.SandboxHours, langLabel,
-	))
+	)+h.aiSettingsSummary(s))
 }
 
 // handleCheck tests a message against filters without taking action. [FEAT-008]
@@ -1187,6 +1199,12 @@ func (h *handler) handleCallbackQuery(query *tgbotapi.CallbackQuery) {
 			key = "lang_set_uk"
 		}
 		h.sendHTML(chatID, i18n.T(newLang, key))
+		return
+	}
+
+	// AI review requests and keyword selection [FEAT-022, FEAT-025]
+	if strings.HasPrefix(query.Data, "ar:") {
+		h.handleReviewCallback(query)
 		return
 	}
 
