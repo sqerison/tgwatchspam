@@ -641,6 +641,11 @@ digital nomad</pre>
     Дія: заблоковано назавжди
   </div>
 
+  <p class="en-only">To keep the chat clean, the notification can delete itself after a set number of minutes (FEAT-018). The timer is stored in the database, so it survives restarts; the bot checks it once a minute. Telegram lets a bot delete its own messages only within 48 hours, so the maximum is 2880 minutes.</p>
+  <p class="uk-only">Щоб чат не засмічувався, сповіщення може видалятися саме через задану кількість хвилин (FEAT-018). Таймер зберігається в базі даних і переживає перезапуск; бот перевіряє його раз на хвилину. Telegram дозволяє боту видаляти власні повідомлення лише протягом 48 годин, тому максимум — 2880 хвилин.</p>
+  <pre>/tgwatch_set notify_delete 10    # delete the notification after 10 minutes
+/tgwatch_set notify_delete off   # keep notifications (default)</pre>
+
   <!-- ── New Members ── -->
   <h2 id="new-members"><span class="en-only">New Member Controls</span><span class="uk-only">Контроль нових учасників</span></h2>
 
@@ -821,6 +826,7 @@ digital nomad</pre>
     </tr>
     <tr><td><code>/tgwatch_set action delete|mute|ban|kick</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Action when spam is detected (default: <code>ban</code>)</span><span class="uk-only">Дія при виявленні спаму (за замовч.: <code>ban</code>)</span></td></tr>
     <tr><td><code>/tgwatch_set mute_duration &lt;hours&gt;</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Mute duration (used when action=mute)</span><span class="uk-only">Тривалість заглушення (при action=mute)</span></td></tr>
+    <tr><td><code>/tgwatch_set notify_delete &lt;min&gt;|off</code></td><td><span class="badge badge-admin">Admin</span></td><td><span class="en-only">Auto-delete spam notifications after N minutes</span><span class="uk-only">Автовидалення сповіщень про спам через N хвилин</span></td></tr>
   </table>
   </div>
 
@@ -916,6 +922,7 @@ digital nomad</pre>
     </tr>
     <tr><td><span class="en-only">Spam action</span><span class="uk-only">Дія для спаму</span></td><td><code>ban</code></td><td><code>/tgwatch_set action</code></td></tr>
     <tr><td><span class="en-only">Mute duration</span><span class="uk-only">Тривалість заглушення</span></td><td><code>24h</code></td><td><code>/tgwatch_set mute_duration</code></td></tr>
+    <tr><td><span class="en-only">Notification auto-delete</span><span class="uk-only">Автовидалення сповіщень</span></td><td><code>off</code></td><td><code>/tgwatch_set notify_delete</code></td></tr>
     <tr><td><span class="en-only">Verification</span><span class="uk-only">Верифікація</span></td><td><code>off</code></td><td><code>/tgwatch_set verification</code></td></tr>
     <tr><td><span class="en-only">Verification timeout</span><span class="uk-only">Таймаут верифікації</span></td><td><code>2 min</code></td><td><code>/tgwatch_set verification_timeout</code></td></tr>
     <tr><td><span class="en-only">Welcome text</span><span class="uk-only">Текст привітання</span></td><td><span class="en-only">built-in</span><span class="uk-only">стандартний</span></td><td><code>/tgwatch_set welcome</code></td></tr>
@@ -957,6 +964,7 @@ digital nomad</pre>
     <tr><td><code>FEAT-015</code></td><td><span class="en-only">Button verification for new members</span><span class="uk-only">Верифікація кнопкою для нових учасників</span></td><td><code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-016</code></td><td><span class="en-only">Per-chat language switching (🇬🇧 / 🇺🇦)</span><span class="uk-only">Перемикання мови бота (🇬🇧 / 🇺🇦)</span></td><td><code>internal/i18n/i18n.go</code>, <code>internal/bot/handlers.go</code></td></tr>
     <tr><td><code>FEAT-017</code></td><td><span class="en-only">Custom welcome message and chat rules</span><span class="uk-only">Власне привітання та правила чату</span></td><td><code>internal/bot/handlers.go</code>, <code>internal/storage/storage.go</code></td></tr>
+    <tr><td><code>FEAT-018</code></td><td><span class="en-only">Auto-delete spam notifications</span><span class="uk-only">Автовидалення сповіщень про спам</span></td><td><code>internal/bot/handlers.go</code>, <code>internal/storage/storage.go</code></td></tr>
   </table>
   </div>
 

@@ -112,7 +112,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Usage: /tgwatch_clear words  or  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
+		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|notify_delete|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
 		"set_action_valid": "Valid actions:\n<code>delete</code> — remove message only\n<code>mute</code> — remove + mute for N hours\n<code>kick</code> — remove + kick (can rejoin)\n<code>ban</code> — remove + permanent ban",
 		"set_action_fail":          "Failed to update action.",
 		"set_action_ok":            "Spam action set to <b>%s</b>.",
@@ -140,7 +140,13 @@ var translations = map[Lang]map[string]string{
 		"set_verif_to_invalid":     "Verification timeout must be a positive whole number of minutes.",
 		"set_verif_to_fail":        "Failed to update verification timeout.",
 		"set_verif_to_ok":          "Verification timeout set to <b>%d minute(s)</b>.",
-		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+
+		// Notification auto-delete [FEAT-018]
+		"set_notify_del_invalid": "Usage: /tgwatch_set notify_delete &lt;minutes&gt;|off — delete the spam notification after N minutes (1–%d). <code>0</code> or <code>off</code> keeps it.",
+		"set_notify_del_fail":    "Failed to update notification auto-delete.",
+		"set_notify_del_ok":      "Spam notifications will be deleted after <b>%d minute(s)</b>.",
+		"set_notify_del_off":     "Spam notifications will stay in the chat.",
+		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
 
 		// Custom welcome + rules [FEAT-017]
 		"set_welcome_usage": "Usage: /tgwatch_set welcome &lt;text&gt; — greeting shown to new members above the rules.\n" +
@@ -163,6 +169,7 @@ var translations = map[Lang]map[string]string{
 		"show_settings": "<b>Settings for this chat</b>\n\n" +
 			"Spam action:           <b>%s</b>\n" +
 			"Mute duration:         <b>%dh</b>\n" +
+			"Notification delete:   <b>%s</b>\n" +
 			"Name filter:           <b>%s</b>\n" +
 			"Verification:          <b>%s</b>\n" +
 			"Verification timeout:  <b>%dm</b>\n" +
@@ -174,6 +181,7 @@ var translations = map[Lang]map[string]string{
 			"Language:              <b>%s</b>",
 		"settings_on":  "on",
 		"settings_off": "off",
+		"settings_minutes": "after %d min",
 		"settings_default": "default",
 		"settings_custom":  "custom",
 		"settings_set":     "set",
@@ -237,6 +245,7 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set action kick — remove + kick (can rejoin)
 /tgwatch_set action ban — remove + permanent ban
 /tgwatch_set mute_duration &lt;hours&gt; — mute duration (default 24h)
+/tgwatch_set notify_delete &lt;minutes&gt;|off — auto-delete spam notifications
 
 <b>New member controls</b>
 /tgwatch_set sandbox on|off
@@ -341,7 +350,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Використання: /tgwatch_clear words  або  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
+		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|notify_delete|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
 		"set_action_valid": "Допустимі дії:\n<code>delete</code> — тільки видалити повідомлення\n<code>mute</code> — видалити + замовчати на N годин\n<code>kick</code> — видалити + виключити (може повернутись)\n<code>ban</code> — видалити + заблокувати назавжди",
 		"set_action_fail":          "Не вдалося оновити дію.",
 		"set_action_ok":            "Дію для спаму встановлено: <b>%s</b>.",
@@ -369,7 +378,13 @@ var translations = map[Lang]map[string]string{
 		"set_verif_to_invalid":     "Таймаут верифікації має бути додатнім цілим числом хвилин.",
 		"set_verif_to_fail":        "Не вдалося оновити таймаут верифікації.",
 		"set_verif_to_ok":          "Таймаут верифікації: <b>%d хв.</b>.",
-		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+
+		// Автовидалення сповіщень [FEAT-018]
+		"set_notify_del_invalid": "Використання: /tgwatch_set notify_delete &lt;хвилин&gt;|off — видаляти сповіщення про спам через N хвилин (1–%d). <code>0</code> або <code>off</code> — не видаляти.",
+		"set_notify_del_fail":    "Не вдалося змінити автовидалення сповіщень.",
+		"set_notify_del_ok":      "Сповіщення про спам видалятимуться через <b>%d хв.</b>",
+		"set_notify_del_off":     "Сповіщення про спам залишатимуться в чаті.",
+		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
 
 		// Custom welcome + rules [FEAT-017]
 		"set_welcome_usage": "Використання: /tgwatch_set welcome &lt;текст&gt; — привітання для нових учасників над правилами.\n" +
@@ -392,6 +407,7 @@ var translations = map[Lang]map[string]string{
 		"show_settings": "<b>Налаштування цього чату</b>\n\n" +
 			"Дія для спаму:         <b>%s</b>\n" +
 			"Тривалість заглушення: <b>%dh</b>\n" +
+			"Автовидалення сповіщень: <b>%s</b>\n" +
 			"Фільтр імен:           <b>%s</b>\n" +
 			"Верифікація:           <b>%s</b>\n" +
 			"Таймаут верифікації:   <b>%dm</b>\n" +
@@ -403,6 +419,7 @@ var translations = map[Lang]map[string]string{
 			"Мова:                  <b>%s</b>",
 		"settings_on":     "увімк.",
 		"settings_off":    "вимк.",
+		"settings_minutes": "через %d хв.",
 		"settings_default": "стандартний",
 		"settings_custom":  "власний",
 		"settings_set":     "задано",
@@ -466,6 +483,7 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set action kick — видалити + виключити (може повернутись)
 /tgwatch_set action ban — видалити + заблокувати назавжди
 /tgwatch_set mute_duration &lt;годин&gt; — тривалість заглушення (за замовч. 24г)
+/tgwatch_set notify_delete &lt;хвилин&gt;|off — автовидалення сповіщень про спам
 
 <b>Контроль нових учасників</b>
 /tgwatch_set sandbox on|off

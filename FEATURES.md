@@ -22,3 +22,4 @@ Search code with: `grep -r "FEAT-XXX" .`
 | FEAT-015 | Done   | internal/bot/handlers.go:handleNewMember, handleCallbackQuery, kickExpiredVerifications | Button verification for new members |
 | FEAT-016 | Done   | internal/i18n/i18n.go, internal/storage/storage.go, internal/bot/handlers.go:handleLang | Per-chat language switching (🇬🇧 English / 🇺🇦 Ukrainian) |
 | FEAT-017 | Done   | internal/bot/handlers.go:verificationContent, handleSetVerificationText, internal/storage/storage.go:SetVerificationText | Custom welcome text + chat rules (expandable quote, accept button, rules link) |
+| FEAT-018 | Done   | internal/bot/handlers.go:handleMessage, deleteDueMessages, internal/storage/storage.go:ScheduleDeletion, PopDueDeletions | Auto-delete spam notifications after N minutes (`/tgwatch_set notify_delete`) |

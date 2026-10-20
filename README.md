@@ -84,6 +84,7 @@ All commands use the `/tgwatch_` prefix to avoid conflicts with other bots in th
 |---------|-----|-------------|
 | `/tgwatch_set action delete\|mute\|ban\|kick` | Admin | What to do when spam is detected (default: ban) |
 | `/tgwatch_set mute_duration <hours>` | Admin | How long to mute (used when action=mute) |
+| `/tgwatch_set notify_delete <min>\|off` | Admin | Auto-delete the "Spam removed" notification after N minutes (max 2880 = 48h, Telegram's limit). Default: off (kept) |
 
 ### New Member Controls
 
