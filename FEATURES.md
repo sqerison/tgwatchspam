@@ -29,4 +29,4 @@ Search code with: `grep -r "FEAT-XXX" .`
 | FEAT-022 | Done   | internal/bot/ai.go:reviewKeywords, handleReviewCallback | Admin-picked filter words: multi-select, risk markers, false-hit check, confirm step |
 | FEAT-023 | Done   | internal/bot/ai.go:fewShotExamples | Admin decisions used as few-shot examples in the prompt |
 | FEAT-024 | Done   | internal/bot/ai.go:aiScan, handleSetAI | Automatic AI scan of unmatched messages (`ai_scan off\|review\|warn\|delete`, threshold, daily limit, scope, notes) |
-| FEAT-025 | Done   | internal/bot/ai.go:openReview, handleReviewCallback, expireReviews, handleSetReviewTo | Review requests: `review_to chat\|dm\|group`, Spam / Delete only / Not spam, 24h expiry |
+| FEAT-025 | Done   | internal/bot/ai.go:openReview, handleReviewCallback, expireReviews, handleSetReviewTo | Review requests: `review_to chat\|dm\|group`, Spam / Delete only / Not spam (rule verdicts: Delete / Not a violation only), `review_timeout` (default 24h) |

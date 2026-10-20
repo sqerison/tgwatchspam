@@ -112,7 +112,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Usage: /tgwatch_clear words  or  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|notify_delete|ai_scan|ai_threshold|ai_limit|ai_scope|ai_notes|review_to|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
+		"set_usage": "Usage: /tgwatch_set &lt;action|mute_duration|notify_delete|ai_scan|ai_threshold|ai_limit|ai_scope|ai_notes|review_to|review_timeout|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;value&gt;",
 		"set_action_valid": "Valid actions:\n<code>delete</code> — remove message only\n<code>mute</code> — remove + mute for N hours\n<code>kick</code> — remove + kick (can rejoin)\n<code>ban</code> — remove + permanent ban",
 		"set_action_fail":          "Failed to update action.",
 		"set_action_ok":            "Spam action set to <b>%s</b>.",
@@ -165,7 +165,7 @@ var translations = map[Lang]map[string]string{
 		"review_rule":       "Rule: %s",
 		"review_link":       "<a href=\"%s\">Open the message</a>",
 		"review_deleted":    "<i>The message was already deleted automatically.</i>",
-		"review_expired":    "⌛ No decision within 24 hours — nothing was done.",
+		"review_expired":    "⌛ No decision within %d h — nothing was done.",
 		"review_decided_spam": "⛔ Spam — %s. The message was removed and the chat's spam action applied.",
 		"review_decided_rule": "🗑 Deleted without penalty — %s.",
 		"review_decided_ok":   "✅ Not spam — %s.",
@@ -174,6 +174,10 @@ var translations = map[Lang]map[string]string{
 		"btn_review_spam":     "⛔ Spam",
 		"btn_review_delete":   "🗑 Delete only",
 		"btn_review_ok":       "✅ Not spam",
+		"btn_review_rule_delete": "🗑 Delete",
+		"btn_review_rule_ok":     "✅ Not a violation",
+		"set_review_timeout_usage": "Usage: /tgwatch_set review_timeout &lt;hours&gt; — how long a review request waits for a decision (1–%d, default 24).",
+		"set_review_timeout_ok":    "Review requests now wait <b>%d h</b> for a decision.",
 		"kw_prompt":           "Pick words or phrases to add to the filter — nothing is added until you confirm.\n🟢 rare in normal messages · 🟡 sometimes · 🔴 common, risky",
 		"kw_false_hits":       "(%d false hits)",
 		"btn_kw_add":          "➕ Add selected (%d)",
@@ -217,8 +221,9 @@ var translations = map[Lang]map[string]string{
 			"Daily limit:           <b>%d</b> (used today: %d)\n" +
 			"Scope:                 <b>%s</b>\n" +
 			"AI notes:              <b>%s</b>\n" +
-			"Review requests:       <b>%s</b>",
-		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>ai_scan</code>, <code>ai_threshold</code>, <code>ai_limit</code>, <code>ai_scope</code>, <code>ai_notes</code>, <code>review_to</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+			"Review requests:       <b>%s</b>\n" +
+			"Review timeout:        <b>%dh</b>",
+		"set_unknown":              "Unknown setting. Valid keys:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>ai_scan</code>, <code>ai_threshold</code>, <code>ai_limit</code>, <code>ai_scope</code>, <code>ai_notes</code>, <code>review_to</code>, <code>review_timeout</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
 
 		// Custom welcome + rules [FEAT-017]
 		"set_welcome_usage": "Usage: /tgwatch_set welcome &lt;text&gt; — greeting shown to new members above the rules.\n" +
@@ -326,6 +331,7 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set ai_threshold &lt;50–100&gt; — minimum confidence (default 80)
 /tgwatch_set ai_limit &lt;n&gt; — automatic checks per day (default 200)
 /tgwatch_set ai_scope all|new — everyone, or members who joined recently
+/tgwatch_set review_timeout &lt;hours&gt; — how long a review waits (default 24)
 /tgwatch_set ai_notes &lt;text&gt;|off — instructions for the AI only
 
 <b>New member controls</b>
@@ -431,7 +437,7 @@ var translations = map[Lang]map[string]string{
 		"clear_usage":        "Використання: /tgwatch_clear words  або  /tgwatch_clear regex",
 
 		// Set
-		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|notify_delete|ai_scan|ai_threshold|ai_limit|ai_scope|ai_notes|review_to|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
+		"set_usage": "Використання: /tgwatch_set &lt;action|mute_duration|notify_delete|ai_scan|ai_threshold|ai_limit|ai_scope|ai_notes|review_to|review_timeout|sandbox|sandbox_duration|name_filter|verification|verification_timeout|welcome|rules|rules_url&gt; &lt;значення&gt;",
 		"set_action_valid": "Допустимі дії:\n<code>delete</code> — тільки видалити повідомлення\n<code>mute</code> — видалити + замовчати на N годин\n<code>kick</code> — видалити + виключити (може повернутись)\n<code>ban</code> — видалити + заблокувати назавжди",
 		"set_action_fail":          "Не вдалося оновити дію.",
 		"set_action_ok":            "Дію для спаму встановлено: <b>%s</b>.",
@@ -484,7 +490,7 @@ var translations = map[Lang]map[string]string{
 		"review_rule":       "Правило: %s",
 		"review_link":       "<a href=\"%s\">Відкрити повідомлення</a>",
 		"review_deleted":    "<i>Повідомлення вже видалено автоматично.</i>",
-		"review_expired":    "⌛ За 24 години рішення не прийняли — нічого не зроблено.",
+		"review_expired":    "⌛ За %d год. рішення не прийняли — нічого не зроблено.",
 		"review_decided_spam": "⛔ Спам — %s. Повідомлення видалено, застосовано дію чату для спаму.",
 		"review_decided_rule": "🗑 Видалено без покарання — %s.",
 		"review_decided_ok":   "✅ Не спам — %s.",
@@ -493,6 +499,10 @@ var translations = map[Lang]map[string]string{
 		"btn_review_spam":     "⛔ Спам",
 		"btn_review_delete":   "🗑 Лише видалити",
 		"btn_review_ok":       "✅ Не спам",
+		"btn_review_rule_delete": "🗑 Видалити",
+		"btn_review_rule_ok":     "✅ Не порушення",
+		"set_review_timeout_usage": "Використання: /tgwatch_set review_timeout &lt;годин&gt; — скільки запит на перевірку чекає рішення (1–%d, за замовч. 24).",
+		"set_review_timeout_ok":    "Запити на перевірку тепер чекають рішення <b>%d год.</b>",
 		"kw_prompt":           "Виберіть слова чи фрази для фільтра — нічого не додається без підтвердження.\n🟢 рідко в нормальних повідомленнях · 🟡 іноді · 🔴 часто, ризиковано",
 		"kw_false_hits":       "(%d хибн. збігів)",
 		"btn_kw_add":          "➕ Додати вибрані (%d)",
@@ -536,8 +546,9 @@ var translations = map[Lang]map[string]string{
 			"Денний ліміт:          <b>%d</b> (сьогодні: %d)\n" +
 			"Кого перевіряти:       <b>%s</b>\n" +
 			"Нотатки для AI:        <b>%s</b>\n" +
-			"Запити на перевірку:   <b>%s</b>",
-		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>ai_scan</code>, <code>ai_threshold</code>, <code>ai_limit</code>, <code>ai_scope</code>, <code>ai_notes</code>, <code>review_to</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
+			"Запити на перевірку:   <b>%s</b>\n" +
+			"Час на рішення:        <b>%d год.</b>",
+		"set_unknown":              "Невідоме налаштування. Допустимі ключі:\n<code>action</code>, <code>mute_duration</code>, <code>notify_delete</code>, <code>ai_scan</code>, <code>ai_threshold</code>, <code>ai_limit</code>, <code>ai_scope</code>, <code>ai_notes</code>, <code>review_to</code>, <code>review_timeout</code>, <code>sandbox</code>, <code>sandbox_duration</code>, <code>name_filter</code>, <code>verification</code>, <code>verification_timeout</code>, <code>welcome</code>, <code>rules</code>, <code>rules_url</code>",
 
 		// Custom welcome + rules [FEAT-017]
 		"set_welcome_usage": "Використання: /tgwatch_set welcome &lt;текст&gt; — привітання для нових учасників над правилами.\n" +
@@ -645,6 +656,7 @@ var translations = map[Lang]map[string]string{
 /tgwatch_set ai_threshold &lt;50–100&gt; — мінімальна впевненість (за замовч. 80)
 /tgwatch_set ai_limit &lt;n&gt; — автоматичних перевірок на день (за замовч. 200)
 /tgwatch_set ai_scope all|new — усі або нещодавно вступилі
+/tgwatch_set review_timeout &lt;годин&gt; — скільки чекає запит на перевірку (за замовч. 24)
 /tgwatch_set ai_notes &lt;текст&gt;|off — інструкції лише для AI
 
 <b>Контроль нових учасників</b>

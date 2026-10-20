@@ -117,10 +117,11 @@ Needs `AI_PROVIDER` + `AI_API_KEY` (see Setup). The AI only sees messages that *
 | `/tgwatch_set ai_limit <n>` | Admin | Automatic checks per chat per day (default 200); admins are told once when it runs out |
 | `/tgwatch_set ai_scope all\|new` | Admin | Check everyone, or only members who joined in the last 30 days |
 | `/tgwatch_set ai_notes <text>\|off` | Admin | Instructions for the AI only, e.g. "short-term rental requests are `rule`" |
+| `/tgwatch_set review_timeout <hours>` | Admin | How long a review request waits for a decision (1–48, default 24); after that it closes and the message is left as is |
 
-A review request shows the verdict, confidence, reason and the message, with three buttons: **⛔ Spam** (delete + the chat's spam action), **🗑 Delete only** (no penalty) and **✅ Not spam**. Only admins of the source chat can press them; the first admin to decide resolves every copy. Every decision is saved as a labelled example that goes into future prompts — "Not spam" examples teach the model what normal messages in this chat look like.
+A review request shows the verdict, confidence, reason and the message, with three buttons: **⛔ Spam** (delete + the chat's spam action), **🗑 Delete only** (no penalty) and **✅ Not spam**. When the verdict is `rule` (a member breaking a chat rule, not spam) there is no ban button — only **🗑 Delete** and **✅ Not a violation**, so rule violations are never punished beyond deletion. Only admins of the source chat can press them; the first admin to decide resolves every copy. Every decision is saved as a labelled example that goes into future prompts — "Not spam" examples teach the model what normal messages in this chat look like.
 
-After **⛔ Spam** the bot suggests words/phrases for the filter as toggle buttons. **Nothing is selected or added automatically**; each suggestion has a risk marker (🟢 rare, 🟡 sometimes, 🔴 common) and is checked against the messages admins marked "Not spam" — a phrase that would have hit one of them is shown as 🔴 with the number of false hits. Adding asks for one more confirmation. Requests nobody answers expire after 24 hours.
+After **⛔ Spam** the bot suggests words/phrases for the filter as toggle buttons. **Nothing is selected or added automatically**; each suggestion has a risk marker (🟢 rare, 🟡 sometimes, 🔴 common) and is checked against the messages admins marked "Not spam" — a phrase that would have hit one of them is shown as 🔴 with the number of false hits. Adding asks for one more confirmation. Requests nobody answers expire after `review_timeout` hours (default 24).
 
 ### Management
 

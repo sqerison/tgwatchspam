@@ -355,6 +355,7 @@ Every scanned message leaves the server and goes to the AI provider. For a **pub
 - Verdict categories are `ok | spam | scam | rule`; `rule` is for legitimate members breaking a chat rule (e.g. short-term rental requests).
 - `ai_notes` — admin instructions sent only to the model.
 - Few-shot: newest 8 spam/scam, 4 rule, 8 ok examples per chat; keyword-filter blocks from `spam_log` fill in while there are few confirmed spam examples.
-- Defaults: `ai_scan off`, threshold 80%, 200 checks/day, scope `all` (`new` = joined in the last 30 days, as seen by the bot), `review_to chat`, 24h review expiry, messages under 20 characters are not checked, `/tgwatch_analyze` cooldown 10s per chat.
+- `rule` verdicts never lead to a ban: their review shows only 🗑 Delete / ✅ Not a violation (a stray `s` callback is downgraded to delete).
+- Defaults: `ai_scan off`, threshold 80%, 200 checks/day, scope `all` (`new` = joined in the last 30 days, as seen by the bot), `review_to chat`, review expiry `review_timeout` 24h (1–48), messages under 20 characters are not checked, `/tgwatch_analyze` cooldown 10s per chat.
 - Toggle state lives in `pending_reviews.selected` (not in memory), so keyword selection survives restarts.
 - Not implemented: per-chat model override, corpus export, `/tgwatch_show corpus`.

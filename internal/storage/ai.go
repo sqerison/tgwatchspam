@@ -36,6 +36,10 @@ func (s *Storage) SetAINotes(chatID int64, notes string) error {
 	return s.setColumn(chatID, `UPDATE settings SET ai_notes = ? WHERE chat_id = ?`, notes)
 }
 
+func (s *Storage) SetReviewTimeout(chatID int64, hours int) error {
+	return s.setColumn(chatID, `UPDATE settings SET review_timeout_h = ? WHERE chat_id = ?`, hours)
+}
+
 func (s *Storage) SetReviewTo(chatID int64, to, target string) error {
 	if err := s.ensureSettings(chatID); err != nil {
 		return err

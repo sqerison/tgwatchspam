@@ -22,17 +22,18 @@ func TestAISettingsDefaultsAndCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.AIScan != "off" || s.AIThreshold != 80 || s.AIDailyLimit != 200 || s.AIScope != "all" || s.ReviewTo != "chat" {
+	if s.AIScan != "off" || s.AIThreshold != 80 || s.AIDailyLimit != 200 || s.AIScope != "all" || s.ReviewTo != "chat" || s.ReviewTimeoutH != 24 {
 		t.Fatalf("defaults: %+v", s)
 	}
 	st.SetAIScan(1, "review")
 	st.SetAINotes(1, "notes")
 	st.SetReviewTo(1, "dm", "10,20")
+	st.SetReviewTimeout(1, 6)
 	if err := st.CopySettings(1, 2); err != nil {
 		t.Fatal(err)
 	}
 	d, _ := st.GetSettings(2)
-	if d.AIScan != "review" || d.AINotes != "notes" {
+	if d.AIScan != "review" || d.AINotes != "notes" || d.ReviewTimeoutH != 6 {
 		t.Fatalf("AI settings not copied: %+v", d)
 	}
 	if d.ReviewTo != "chat" || d.ReviewTarget != "" {

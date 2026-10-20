@@ -37,6 +37,7 @@ type Settings struct {
 	AINotes              string // [FEAT-024] admin instructions for the model, not shown to members
 	ReviewTo             string // [FEAT-025] chat | dm | group
 	ReviewTarget         string // [FEAT-025] dm: comma-separated user IDs; group: chat ID
+	ReviewTimeoutH       int    // [FEAT-025] hours an unanswered review request stays open
 }
 
 // PendingDeletion is a bot message scheduled for automatic deletion. [FEAT-018]
@@ -224,6 +225,7 @@ func (s *Storage) migrate() error {
 		`ALTER TABLE settings ADD COLUMN ai_notes TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE settings ADD COLUMN review_to TEXT NOT NULL DEFAULT 'chat'`,
 		`ALTER TABLE settings ADD COLUMN review_target TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE settings ADD COLUMN review_timeout_h INTEGER NOT NULL DEFAULT 24`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
@@ -337,7 +339,7 @@ func (s *Storage) GetSettings(chatID int64) (*Settings, error) {
 	}
 	row := s.db.QueryRow(
 		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m, language, welcome_text, rules_text, rules_url, notify_delete_m,
-		        ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_to, review_target
+		        ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_to, review_target, review_timeout_h
 		 FROM settings WHERE chat_id = ?`,
 		chatID,
 	)
@@ -345,7 +347,7 @@ func (s *Storage) GetSettings(chatID int64) (*Settings, error) {
 	st.ChatID = chatID
 	var sandboxEnabled, nameFilter, verificationEnabled int
 	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM, &st.Language, &st.WelcomeText, &st.RulesText, &st.RulesURL, &st.NotifyDeleteM,
-		&st.AIScan, &st.AIThreshold, &st.AIDailyLimit, &st.AIScope, &st.AINotes, &st.ReviewTo, &st.ReviewTarget); err != nil {
+		&st.AIScan, &st.AIThreshold, &st.AIDailyLimit, &st.AIScope, &st.AINotes, &st.ReviewTo, &st.ReviewTarget, &st.ReviewTimeoutH); err != nil {
 		return nil, err
 	}
 	st.SandboxEnabled = sandboxEnabled != 0
@@ -535,9 +537,9 @@ func (s *Storage) CopySettings(srcChatID, dstChatID int64) error {
 	}
 	if _, err := tx.Exec(
 		`INSERT INTO settings (chat_id, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url, notify_delete_m,
-		                       ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes)
+		                       ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_timeout_h)
 		 SELECT ?, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url, notify_delete_m,
-		        ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes FROM settings WHERE chat_id = ?`,
+		        ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_timeout_h FROM settings WHERE chat_id = ?`,
 		dstChatID, srcChatID,
 	); err != nil {
 		return err

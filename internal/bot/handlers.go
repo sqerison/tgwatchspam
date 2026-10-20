@@ -824,7 +824,7 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	case "welcome", "rules", "rules_url":
 		h.handleSetVerificationText(msg, key, val)
 
-	case "ai_scan", "ai_threshold", "ai_limit", "ai_scope", "ai_notes", "review_to": // [FEAT-024, FEAT-025]
+	case "ai_scan", "ai_threshold", "ai_limit", "ai_scope", "ai_notes", "review_to", "review_timeout": // [FEAT-024, FEAT-025]
 		h.handleSetAI(msg, key, val)
 
 	case "notify_delete": // [FEAT-018]

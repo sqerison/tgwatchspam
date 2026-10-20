@@ -21,7 +21,7 @@ import (
 const (
 	aiMinRunes        = 20               // shorter messages are never sent to the model [FEAT-024]
 	newMemberDays     = 30               // ai_scope=new covers members who joined within this many days
-	reviewTTL         = 24 * time.Hour   // open review requests expire after this [FEAT-025]
+	maxReviewTimeoutH = 48               // Telegram allows deleting bot messages only within 48h [FEAT-025]
 	reviewCleanup     = 10 * time.Minute // decided requests in the group are deleted after this
 	analyzeCooldown   = 10 * time.Second // per-chat cooldown for /tgwatch_analyze [FEAT-021]
 	aiCallTimeout     = 60 * time.Second
@@ -362,7 +362,7 @@ func (h *handler) openReview(msg *tgbotapi.Message, s *storage.Settings, v *ai.V
 		Source:         source,
 		MessageDeleted: deleted,
 		CreatedAt:      time.Now(),
-		ExpiresAt:      time.Now().Add(reviewTTL),
+		ExpiresAt:      time.Now().Add(time.Duration(s.ReviewTimeoutH) * time.Hour),
 	}
 	if err := h.storage.CreateReview(r); err != nil {
 		log.Printf("create review: %v", err)
@@ -502,9 +502,13 @@ func (h *handler) renderReviewStage(r *storage.Review, lang string, stage int) (
 
 	switch stage {
 	case stageDecision:
-		if r.Status == "expired" {
-			sb.WriteString("\n\n" + i18n.T(lang, "review_expired"))
-			return sb.String(), nil
+		// A rule violation is not spam: the only actions are delete (no penalty) or leave it.
+		if r.Verdict == ai.VerdictRule {
+			kb := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_review_rule_delete"), cb("d")),
+				tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_review_rule_ok"), cb("n")),
+			))
+			return sb.String(), &kb
 		}
 		kb := tgbotapi.NewInlineKeyboardMarkup(tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData(i18n.T(lang, "btn_review_spam"), cb("s")),
@@ -566,7 +570,7 @@ func (h *handler) decisionLine(r *storage.Review, lang string) string {
 	case "ok":
 		return i18n.Tf(lang, "review_decided_ok", by)
 	}
-	return i18n.T(lang, "review_expired")
+	return i18n.Tf(lang, "review_expired", int(r.ExpiresAt.Sub(r.CreatedAt).Hours()+0.5))
 }
 
 func riskMarker(risk string) string {
@@ -646,6 +650,9 @@ func (h *handler) handleReviewCallback(q *tgbotapi.CallbackQuery) {
 
 	switch action {
 	case "s", "d", "n":
+		if action == "s" && r.Verdict == ai.VerdictRule {
+			action = "d" // rule violations are only ever deleted, never punished
+		}
 		status := map[string]string{"s": "spam", "d": "rule", "n": "ok"}[action]
 		won, err := h.storage.DecideReview(id, status, by)
 		if err != nil {
@@ -797,7 +804,7 @@ func (h *handler) refreshReviewCopies(r *storage.Review, s *storage.Settings, he
 	}
 }
 
-// expireReviews closes requests nobody answered within reviewTTL. [FEAT-025]
+// expireReviews closes requests nobody answered within the chat's review_timeout. [FEAT-025]
 func (h *handler) expireReviews() {
 	items, err := h.storage.ExpireReviews()
 	if err != nil {
@@ -897,6 +904,16 @@ func (h *handler) handleSetAI(msg *tgbotapi.Message, key, val string) bool {
 		}
 	case "review_to":
 		h.handleSetReviewTo(msg, val)
+	case "review_timeout":
+		n, err := strconv.Atoi(strings.TrimSuffix(strings.ToLower(val), "h"))
+		if err != nil || n < 1 || n > maxReviewTimeoutH {
+			h.sendHTML(chatID, i18n.Tf(lang, "set_review_timeout_usage", maxReviewTimeoutH))
+			return true
+		}
+		if err := h.storage.SetReviewTimeout(chatID, n); err != nil {
+			return fail(err)
+		}
+		h.sendHTML(chatID, i18n.Tf(lang, "set_review_timeout_ok", n))
 	default:
 		return false
 	}
@@ -1030,5 +1047,5 @@ func (h *handler) aiSettingsSummary(s *storage.Settings) string {
 	}
 	return i18n.Tf(lang, "show_settings_ai",
 		provider, s.AIScan, s.AIThreshold, s.AIDailyLimit, h.storage.AIUsageToday(s.ChatID),
-		s.AIScope, notes, review)
+		s.AIScope, notes, review, s.ReviewTimeoutH)
 }
