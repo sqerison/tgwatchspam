@@ -2,7 +2,9 @@
 
 **Status:** Planned
 **Next Feature ID at time of writing:** FEAT-016
-**Feature range:** FEAT-016 – FEAT-020
+**Feature range:** FEAT-016 – FEAT-020 (spec numbering) → **FEAT-019 – FEAT-023** after renumbering; Phase 2 adds FEAT-024 – FEAT-025
+
+> **ID shift:** FEAT-016 – FEAT-018 were used by language support, welcome/rules and notification auto-delete, so every ID in Phase 1 below is three lower than the real one (spec FEAT-016 = real FEAT-019). Phase 2 uses real IDs.
 
 ---
 
@@ -30,8 +32,8 @@ The current filter is purely reactive — admins must manually craft words and r
 
 ## Non-Goals
 
-- No automatic scanning of all messages
-- No AI running in the background
+- ~~No automatic scanning of all messages~~ — reversed for Phase 2, see the end of this document
+- No AI running in the background (Phase 2 scans on message arrival, not in a background job)
 - No external storage of messages — corpus stays in local SQLite DB
 - No per-chat AI API key management — one global key set by superadmin
 
@@ -166,23 +168,35 @@ Analyze this message and return spam keywords:
 
 ### FEAT-019 — Interactive Keyword Confirmation (Inline Buttons)
 
-**What:** The bot reply from FEAT-018 shows each suggested keyword as a toggleable inline button. Admin selects which to keep, then confirms.
+**What:** The bot reply from FEAT-018 shows each suggested keyword as a toggleable inline button (multi-select). Admin selects which to keep, then confirms.
 
-**Button layout example (5 suggestions, 3 toggled on):**
+**Principle (decided 2026-10-20): nothing is ever added to the filter automatically.** A word that is obviously spam today ("завдаток", "заробіток", "оренда") can be part of a normal question tomorrow, and with action=ban a false match bans a real member. So:
+- **Nothing is pre-selected** — the admin consciously ticks each word or phrase
+- The model is told to prefer **specific phrases** over single words ("пишіть в особисті за деталями заробітку", not "заробіток") and to return a risk level for each suggestion
+- Each suggestion shows a **risk marker**: 🟢 specific phrase, unlikely in normal messages · 🟡 may appear in normal messages · 🔴 common word, would hit ordinary conversation
+- Before showing the buttons, the bot runs each suggestion through the normal matcher (`filter.Normalize` + substring) against the chat's **Not spam ✗** examples; a suggestion that would have matched one gets 🔴 and the count, e.g. "🔴 оренда (2 false hits)"
+- Suggestions that are already in the word list are not shown
+- "Add selected" opens a one-line summary ("Add 2 phrases: …?") with Confirm / Back, so a mis-tap does not change the filter
+
+**Button layout example (5 suggestions, 2 toggled on by the admin):**
 
 ```
-AI suggested these keywords:
+AI suggested these words/phrases (nothing is added until you confirm):
 
-[✓ buy followers]  [✓ заработок]
-[✓ t.me/spam]      [  cheap]
-[  guaranteed]
+[✓ 🟢 легкий заробіток без досвіду]
+[✓ 🟢 t.me/+invite]
+[  🟡 пишіть в особисті]
+[  🔴 завдаток]
+[  🔴 оренда (2 false hits)]
 
-[Add selected (3)]   [Ban user]   [Dismiss]
+[Add selected (2)]   [Ban user]   [Dismiss]
 ```
+
+Admins can still add a word by hand with `/tgwatch_add word` — the buttons only save typing.
 
 **Button behavior:**
 - Keyword button tap toggles on/off — updates the message in-place (edit message)
-- "Add selected" — adds all toggled-on keywords via `storage.AddWords()`, then calls `storage.UpdateFlaggedWords()` with confirmed list, then updates message to show confirmation
+- "Add selected" — after the Confirm step, adds all toggled-on keywords via `storage.AddWords()`, then calls `storage.UpdateFlaggedWords()` with confirmed list, then updates message to show confirmation
 - "Ban user" — bans the original flagged message author using existing ban logic; does not automatically add words
 - "Dismiss" — deletes the suggestion message, no filter changes made
 
@@ -192,7 +206,9 @@ AI suggested these keywords:
 - `aa_ban:{flagged_id}:{user_id}` — ban user
 - `aa_dismiss:{flagged_id}` — dismiss
 
-**State storage:** Toggle state (bitmask or bool slice) stored in memory keyed by bot message ID, with 10-minute TTL. After TTL, buttons become inactive with a "Expired — use /tgwatch_analyze again" edit.
+**State storage:** Toggle state (bitmask) stored in memory keyed by bot message ID. TTL: 10 minutes for `/tgwatch_analyze`; for Phase 2 review requests the suggestions are stored in `pending_reviews` instead, because an admin may answer hours later. After expiry, buttons become inactive with an "Expired" edit.
+
+Only admins of the source chat may toggle or confirm.
 
 **Callback prefix:** `aa_` (analyze action) — no collision with existing `vf_` (verify) callbacks.
 
@@ -246,3 +262,86 @@ FEAT-020 requires no code beyond FEAT-016–018; it is the integration step.
 2. Should the corpus be viewable by admins (`/tgwatch_show corpus`)?
 3. Should superadmin be able to export the corpus for external analysis?
 4. 500-char message truncation — sufficient for typical spam, or should it be configurable?
+
+---
+
+## Phase 2 — Automatic AI scan of unmatched messages (FEAT-024 – FEAT-025)
+
+**Status:** Idea, agreed direction (2026-10-20). Builds on the Phase 1 AI client and corpus.
+
+### Idea
+
+The word/regex filter only catches spam it already knows. Phase 2 sends every message that **passed** the database filter to the configured AI model, which classifies it, and the bot acts on the verdict. The main target is not classic spam (the keyword filter handles that) but the scam pattern seen in community chats: "I'll recommend someone, write to me privately", requests for a deposit or prepayment, crypto, "easy money", cash-for-card exchange, paid "help" with documents.
+
+### Pipeline
+
+```
+message → admin? skip → DB filter (FEAT-001/002) → match? existing action, stop
+                                               → no match → AI scan (if enabled for the chat)
+                                                            → verdict ok        → nothing
+                                                            → verdict spam/scam → depends on ai_scan mode:
+                                                                 review → message stays, admins classify it
+                                                                 warn   → message stays, warning reply in chat
+                                                                 delete → message deleted, admins confirm afterwards
+```
+
+### FEAT-024 — Per-message AI classification
+
+- Per-chat opt-in: `/tgwatch_set ai_scan off|review|warn|delete` (default `off`). Recommended rollout: start with `review` to see how often the model is right in this chat, then move to `warn` or `delete`
+- Model chosen by the operator: `AI_PROVIDER` + `AI_MODEL` env vars (the Phase 1 client); a per-chat model override is optional and can come later
+- Response is strict JSON: `{"verdict": "ok|spam|scam", "confidence": 0.0–1.0, "reason": "<short text>", "keywords": [...]}`
+- Act only above a confidence threshold (`/tgwatch_set ai_threshold 0.8`)
+- The system prompt carries the chat's own rules (`rules_text` from FEAT-017) so the model knows what this community counts as scam
+- Prompt injection: same delimiters and JSON-only rules as Phase 1; the message text is data, never instructions
+
+### FEAT-025 — Actions and admin feedback
+
+- `review`: **nothing visible happens in the chat.** The message stays, and admins get a review request: the message text (or a link to it), author, the model's verdict, confidence and reason, plus buttons **Spam ✓** / **Not spam ✗**.
+  - **Spam ✓** — the bot deletes the message and applies the chat's normal spam action (`action`: delete/mute/kick/ban). This is allowed because a human made the decision; the AI only proposed it. Then the bot offers words/phrases to add with the multi-select buttons (FEAT-022 rules: nothing pre-selected, risk markers, check against Not spam examples).
+  - **Not spam ✗** — nothing happens to the message; it is stored as a negative example.
+  - No answer — the request expires (e.g. after 24h) and is removed; the message stays.
+  - The review message itself auto-deletes after it is answered (FEAT-018 mechanism).
+- `warn`: the bot replies to the message with a **very short** neutral warning and no buttons — e.g. "⚠️ Be careful: this message may be suspicious. Never pay deposits in advance." The message stays, nobody has to decide anything. This is the low-effort mode for when admins get tired of classifying `review` requests. The warning auto-deletes like FEAT-018 notifications. Kept as a separate mode from `review_to chat` on purpose (decided 2026-10-20): `review` asks admins for a decision, `warn` only warns members.
+- `delete`: the message is deleted and admins get a notification with the reason and buttons **Spam ✓** / **Not spam ✗**.
+- **Never ban on the AI verdict alone** — bans stay with the keyword filter and admins (in `review` mode the ban comes from the admin's **Spam ✓**, not from the model).
+
+**Where review requests go — configurable per chat (decided 2026-10-20):**
+
+```
+/tgwatch_set review_to chat                     # reply to the message in the group itself (default)
+/tgwatch_set review_to dm @admin1 @admin2       # private message to the listed logins
+/tgwatch_set review_to group -1001234567890     # a separate admin group
+```
+
+- **`chat`** — the bot replies to the suspicious message in the group with the verdict and the buttons. Everyone (including the author) sees it; that is accepted — it also works as a public warning. Only admins can press the buttons; anyone else gets a "Admins only" popup. After a decision the request is deleted (FEAT-018 mechanism); on **Not spam ✗** the bot leaves no trace in the chat.
+- **`dm <logins>`** — private message to each listed login. Constraints:
+  - The Bot API cannot look up a user by @username, so the logins are resolved against the group's admin list (`getChatAdministrators`), which returns IDs. A login that is not an admin of the group is rejected with an error — non-admins could not act on the request anyway.
+  - A bot can write to someone only after they pressed Start in its DM. On `review_to dm` the bot test-sends to each login and replies which ones still need to press Start (with a `t.me/<bot>?start=review` link). Undeliverable logins are reported, not silently skipped.
+  - IDs are stored, not usernames, so a later username change does not break delivery.
+- **`group <chat_id>`** — **any** group the bot is a member of. It does not have to be an "admin chat" of the source group: a private group with just one admin and the bot is a valid target (e.g. the owner's personal review inbox). On `review_to group` the bot test-sends to it and rejects the setting if it cannot post there. Buttons in that group still check that the presser is an admin of the **source** chat, so adding someone to the review group does not by itself give them moderation power.
+- **Exactly one destination per chat (decided 2026-10-20).** `chat`, `dm` and `group` are mutually exclusive — setting one replaces the previous one. Rationale: if requests go to the group chat, a DM copy adds nothing; `dm` and `group` are alternatives for keeping requests private.
+- In `dm` and `group` modes, whoever answers first resolves the request for everyone: the bot edits all copies to "✓ Spam — resolved by @admin" / "✗ Not spam — @admin".
+- Storage: `review_to` (`chat|dm|group`) and `review_target` (comma-separated user IDs or the group ID) columns in `settings`; `CopySettings()` should **not** copy `review_target`, because the admins of another chat are different people.
+
+Callback data for the buttons: `ar:<s|n>:<chatID>:<messageID>` fits in 64 bytes; the message text, verdict and author are kept in a `pending_reviews` table, because after a **Spam ✓** the bot needs the author's ID and the original message ID. Only admins of the source chat may press the buttons.
+- **Spam ✓** stores the message in `flagged_messages` (Phase 1 corpus) and offers the suggested words/phrases as multi-select buttons (real FEAT-022). **Nothing is added automatically** — only what an admin ticks and confirms goes into the DB, so the filter grows with rules a human approved and the AI is needed less over time. **Not spam ✗** stores a negative example used as few-shot context against false positives.
+
+### Cost and load control
+
+- Skip messages shorter than N characters, stickers and media without a caption
+- Optional: scan only recent members (e.g. joined < 30 days ago) or users with few messages — most scam accounts are new
+- Daily per-chat call budget; when it runs out, the scan pauses until midnight and admins are told once
+- Calls run asynchronously so a slow API never delays the keyword filter
+
+### Privacy
+
+Every scanned message leaves the server and goes to the AI provider. The chat rules must say so before `ai_scan` is enabled.
+
+### Open questions
+
+1. Scan everyone, or only new members / users with few messages?
+2. ~~Is `warn` acceptable~~ — decided: yes, kept as a separate short-warning mode.
+3. Per-chat model choice, or one global model?
+4. Daily budget per chat — what number?
+5. ~~Where `review` requests go~~ — decided: `review_to chat|dm <logins>|group <id>`, default `chat`, exactly one destination at a time; `group` may be any group with the bot, even a one-person one.
+6. In `review` mode, should **Spam ✓** apply the chat's `action` (default ban), or only delete the message and let the admin decide on the ban separately?
