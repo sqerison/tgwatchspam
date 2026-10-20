@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -13,6 +14,12 @@ type Config struct {
 	SuperAdminID int64
 	DatabasePath string
 	LogLevel     string
+
+	// AI-assisted spam analysis, optional [FEAT-020]
+	AIProvider string // gemini | openai | claude; empty disables AI
+	AIAPIKey   string
+	AIBaseURL  string
+	AIModel    string
 }
 
 func Load() *Config {
@@ -39,10 +46,21 @@ func Load() *Config {
 		logLevel = "info"
 	}
 
+	aiProvider := strings.ToLower(strings.TrimSpace(os.Getenv("AI_PROVIDER")))
+	aiKey := os.Getenv("AI_API_KEY")
+	if aiProvider != "" && aiKey == "" {
+		log.Printf("AI_PROVIDER=%s is set but AI_API_KEY is empty — AI analysis disabled", aiProvider)
+		aiProvider = ""
+	}
+
 	return &Config{
 		BotToken:     token,
 		SuperAdminID: superAdminID,
 		DatabasePath: dbPath,
 		LogLevel:     logLevel,
+		AIProvider:   aiProvider,
+		AIAPIKey:     aiKey,
+		AIBaseURL:    strings.TrimRight(os.Getenv("AI_BASE_URL"), "/"),
+		AIModel:      os.Getenv("AI_MODEL"),
 	}
 }

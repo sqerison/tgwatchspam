@@ -13,6 +13,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sqerison/tgwatchspam/internal/admin"
+	"github.com/sqerison/tgwatchspam/internal/ai"
 	"github.com/sqerison/tgwatchspam/internal/config"
 	"github.com/sqerison/tgwatchspam/internal/filter"
 	"github.com/sqerison/tgwatchspam/internal/i18n"
@@ -26,6 +27,9 @@ type handler struct {
 	admin    *admin.Admin
 	cfg      *config.Config
 	confirms confirmStore
+
+	ai           *ai.Client // nil when AI_PROVIDER is not configured [FEAT-020]
+	analyzeLimit cooldown   // [FEAT-021]
 }
 
 // confirmStore holds pending /clear and /copy confirmations (in-memory, 60s TTL).
@@ -64,8 +68,8 @@ func (c *confirmStore) pop(chatID, userID int64) (string, bool) {
 	return e.action, true
 }
 
-func newHandler(bot *tgbotapi.BotAPI, st *storage.Storage, flt *filter.Filter, adm *admin.Admin, cfg *config.Config) *handler {
-	return &handler{bot: bot, storage: st, filter: flt, admin: adm, cfg: cfg}
+func newHandler(bot *tgbotapi.BotAPI, st *storage.Storage, flt *filter.Filter, adm *admin.Admin, cfg *config.Config, aic *ai.Client) *handler {
+	return &handler{bot: bot, storage: st, filter: flt, admin: adm, cfg: cfg, ai: aic}
 }
 
 // lang returns the configured language for a chat.
@@ -96,17 +100,19 @@ func (h *handler) send(chatID int64, text string) {
 	}
 }
 
-func (h *handler) sendHTML(chatID int64, text string) {
+// sendHTML sends an HTML message and returns its ID, or 0 if sending failed.
+func (h *handler) sendHTML(chatID int64, text string) int {
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = tgbotapi.ModeHTML
 	sent, err := h.bot.Send(msg)
 	if err != nil {
 		log.Printf("sendHTML error chatID=%d: %v", chatID, err)
-		return
+		return 0
 	}
 	if err := h.storage.TrackMessage(chatID, sent.MessageID); err != nil {
 		log.Printf("track message: %v", err)
 	}
+	return sent.MessageID
 }
 
 // actionLabel returns a human-readable description of the action taken. [FEAT-014]
@@ -131,6 +137,10 @@ const (
 	maxWelcomeLen = 600
 	maxRulesLen   = 3000
 )
+
+// maxNotifyDeleteM caps the notification auto-delete delay: Telegram lets a bot delete
+// its own group messages only within 48 hours of sending them. [FEAT-018]
+const maxNotifyDeleteM = 48 * 60
 
 // verificationContent builds the message and keyboard shown to a new member. [FEAT-015, FEAT-017]
 // callbackData is the accept button's payload: "verify:…" for a real join, "preview" for an admin preview.
@@ -225,6 +235,10 @@ func (h *handler) handle(update tgbotapi.Update) {
 
 // handleNewMember runs name filter, verification, and sandbox on join. [FEAT-007, FEAT-010, FEAT-015]
 func (h *handler) handleNewMember(chatID int64, user *tgbotapi.User) {
+	// Remember when the member joined, for ai_scope=new and the AI prompt [FEAT-024]
+	if err := h.storage.RecordJoin(chatID, user.ID, time.Now()); err != nil {
+		log.Printf("record join: %v", err)
+	}
 	settings, err := h.storage.GetSettings(chatID)
 	if err != nil {
 		log.Printf("get settings chatID=%d: %v", chatID, err)
@@ -296,10 +310,7 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 		return
 	}
 
-	text := msg.Text
-	if text == "" {
-		text = msg.Caption
-	}
+	text := messageText(msg)
 	if text == "" {
 		return
 	}
@@ -307,9 +318,6 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 	result, err := h.filter.Check(msg.Chat.ID, text)
 	if err != nil {
 		log.Printf("filter check: %v", err)
-		return
-	}
-	if result == nil {
 		return
 	}
 
@@ -320,27 +328,14 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 	}
 	lang := settings.Language
 
-	h.deleteMessage(msg.Chat.ID, msg.MessageID)
-
-	actionTaken := settings.Action
-	switch settings.Action {
-	case "ban":
-		h.banUser(msg.Chat.ID, msg.From.ID)
-	case "kick":
-		h.banUser(msg.Chat.ID, msg.From.ID)
-		h.unbanUser(msg.Chat.ID, msg.From.ID)
-	case "mute":
-		until := time.Now().Add(time.Duration(settings.MuteDurationH) * time.Hour)
-		h.muteUser(msg.Chat.ID, msg.From.ID, until)
-		if err := h.storage.AddPendingUnrestrict(msg.Chat.ID, msg.From.ID, until, "mute"); err != nil {
-			log.Printf("add pending unrestrict: %v", err)
-		}
-	case "delete":
-		// message already deleted above
-	default:
-		h.banUser(msg.Chat.ID, msg.From.ID)
-		actionTaken = "ban"
+	// Not in the word/regex lists: let the AI look at it, if enabled [FEAT-024]
+	if result == nil {
+		h.aiScan(msg, settings, text)
+		return
 	}
+
+	h.deleteMessage(msg.Chat.ID, msg.MessageID)
+	actionTaken := h.applyAction(msg.Chat.ID, msg.From.ID, settings)
 
 	entry := storage.SpamEntry{
 		ChatID:      msg.Chat.ID,
@@ -358,18 +353,44 @@ func (h *handler) handleMessage(msg *tgbotapi.Message) {
 		msg.From.ID, msg.From.UserName, msg.Chat.ID, result.Type, result.Pattern, actionTaken)
 
 	// Notify the group what happened and why [FEAT-014]
-	userRef := fmt.Sprintf("user #%d", msg.From.ID)
-	if msg.From.UserName != "" {
-		userRef = "@" + html.EscapeString(msg.From.UserName)
-	} else if msg.From.FirstName != "" {
-		userRef = html.EscapeString(msg.From.FirstName)
-	}
-	h.sendHTML(msg.Chat.ID, i18n.Tf(lang, "spam_notification",
-		userRef,
+	notifyID := h.sendHTML(msg.Chat.ID, i18n.Tf(lang, "spam_notification",
+		userRef(msg.From),
 		result.Type,
 		html.EscapeString(result.Pattern),
 		actionLabel(lang, actionTaken, settings.MuteDurationH),
 	))
+
+	// Schedule the notification for removal so the chat does not fill up with them [FEAT-018]
+	if notifyID != 0 && settings.NotifyDeleteM > 0 {
+		deleteAt := time.Now().Add(time.Duration(settings.NotifyDeleteM) * time.Minute)
+		if err := h.storage.ScheduleDeletion(msg.Chat.ID, notifyID, deleteAt); err != nil {
+			log.Printf("schedule notification deletion: %v", err)
+		}
+	}
+}
+
+// applyAction punishes the author according to the chat's spam action and returns
+// the action actually taken. The message itself must already be deleted. [FEAT-004]
+func (h *handler) applyAction(chatID, userID int64, settings *storage.Settings) string {
+	switch settings.Action {
+	case "ban":
+		h.banUser(chatID, userID)
+	case "kick":
+		h.banUser(chatID, userID)
+		h.unbanUser(chatID, userID)
+	case "mute":
+		until := time.Now().Add(time.Duration(settings.MuteDurationH) * time.Hour)
+		h.muteUser(chatID, userID, until)
+		if err := h.storage.AddPendingUnrestrict(chatID, userID, until, "mute"); err != nil {
+			log.Printf("add pending unrestrict: %v", err)
+		}
+	case "delete":
+		// nothing beyond deleting the message
+	default:
+		h.banUser(chatID, userID)
+		return "ban"
+	}
+	return settings.Action
 }
 
 // handleCommand routes slash commands to the appropriate handler.
@@ -440,6 +461,8 @@ func (h *handler) handleCommand(msg *tgbotapi.Message) {
 		h.handleClean(chatID) // [FEAT-013]
 	case "lang":
 		h.handleLang(msg) // [FEAT-016]
+	case "analyze":
+		h.handleAnalyze(msg) // [FEAT-021]
 	case "help":
 		h.handleHelp(chatID)
 	}
@@ -801,6 +824,29 @@ func (h *handler) handleSet(msg *tgbotapi.Message, args string) {
 	case "welcome", "rules", "rules_url":
 		h.handleSetVerificationText(msg, key, val)
 
+	case "ai_scan", "ai_threshold", "ai_limit", "ai_scope", "ai_notes", "review_to", "review_timeout": // [FEAT-024, FEAT-025]
+		h.handleSetAI(msg, key, val)
+
+	case "notify_delete": // [FEAT-018]
+		n := 0
+		if !strings.EqualFold(val, "off") {
+			var err error
+			n, err = strconv.Atoi(val)
+			if err != nil || n < 0 || n > maxNotifyDeleteM {
+				h.sendHTML(chatID, i18n.Tf(lang, "set_notify_del_invalid", maxNotifyDeleteM))
+				return
+			}
+		}
+		if err := h.storage.SetNotifyDelete(chatID, n); err != nil {
+			h.send(chatID, i18n.T(lang, "set_notify_del_fail"))
+			return
+		}
+		if n == 0 {
+			h.send(chatID, i18n.T(lang, "set_notify_del_off"))
+		} else {
+			h.sendHTML(chatID, i18n.Tf(lang, "set_notify_del_ok", n))
+		}
+
 	default:
 		h.sendHTML(chatID, i18n.T(lang, "set_unknown"))
 	}
@@ -907,12 +953,16 @@ func (h *handler) handleShowSettings(chatID int64) {
 	if s.RulesURL != "" {
 		rulesURL = html.EscapeString(s.RulesURL)
 	}
+	notifyDelete := off
+	if s.NotifyDeleteM > 0 {
+		notifyDelete = i18n.Tf(lang, "settings_minutes", s.NotifyDeleteM)
+	}
 	h.sendHTML(chatID, i18n.Tf(lang, "show_settings",
-		s.Action, s.MuteDurationH, nameFilter,
+		s.Action, s.MuteDurationH, notifyDelete, nameFilter,
 		verification, s.VerificationTimeoutM,
 		welcome, rules, rulesURL,
 		sandbox, s.SandboxHours, langLabel,
-	))
+	)+h.aiSettingsSummary(s))
 }
 
 // handleCheck tests a message against filters without taking action. [FEAT-008]
@@ -1152,6 +1202,12 @@ func (h *handler) handleCallbackQuery(query *tgbotapi.CallbackQuery) {
 		return
 	}
 
+	// AI review requests and keyword selection [FEAT-022, FEAT-025]
+	if strings.HasPrefix(query.Data, "ar:") {
+		h.handleReviewCallback(query)
+		return
+	}
+
 	if !strings.HasPrefix(query.Data, "verify:") {
 		return
 	}
@@ -1223,6 +1279,18 @@ func (h *handler) kickExpiredVerifications() {
 			log.Printf("remove pending verification on kick: %v", err)
 		}
 		log.Printf("verification timeout: kicked user %d from chat %d", item.UserID, item.ChatID)
+	}
+}
+
+// deleteDueMessages removes bot messages whose auto-delete time has passed. [FEAT-018]
+func (h *handler) deleteDueMessages() {
+	items, err := h.storage.PopDueDeletions()
+	if err != nil {
+		log.Printf("pop due deletions: %v", err)
+		return
+	}
+	for _, item := range items {
+		h.deleteMessage(item.ChatID, item.MessageID)
 	}
 }
 

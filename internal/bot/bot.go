@@ -6,6 +6,7 @@ import (
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sqerison/tgwatchspam/internal/admin"
+	"github.com/sqerison/tgwatchspam/internal/ai"
 	"github.com/sqerison/tgwatchspam/internal/config"
 	"github.com/sqerison/tgwatchspam/internal/filter"
 	"github.com/sqerison/tgwatchspam/internal/storage"
@@ -17,7 +18,7 @@ func registerCommands(bot *tgbotapi.BotAPI) {
 		{Command: "tgwatch_remove", Description: "Remove word or regex: /tgwatch_remove word <text> | /tgwatch_remove regex <pattern>"},
 		{Command: "tgwatch_list", Description: "List blocked words or patterns: /tgwatch_list words | /tgwatch_list regex"},
 		{Command: "tgwatch_clear", Description: "Clear all words or patterns: /tgwatch_clear words | /tgwatch_clear regex"},
-		{Command: "tgwatch_set", Description: "Change settings: action, mute_duration, verification, welcome, rules, rules_url, sandbox, name_filter"},
+		{Command: "tgwatch_set", Description: "Change settings: action, mute_duration, notify_delete, ai_scan, review_to, verification, welcome, rules, rules_url, sandbox, name_filter"},
 		{Command: "tgwatch_show", Description: "Show current settings: /tgwatch_show settings"},
 		{Command: "tgwatch_check", Description: "Test a message against filters without taking action"},
 		{Command: "tgwatch_log", Description: "Show spam log: /tgwatch_log [n] | /tgwatch_log clear"},
@@ -25,6 +26,7 @@ func registerCommands(bot *tgbotapi.BotAPI) {
 		{Command: "tgwatch_clean", Description: "Delete all bot replies and admin commands from this chat"},
 		{Command: "tgwatch_copy", Description: "Superadmin: copy settings between chats (use in DM)"},
 		{Command: "tgwatch_lang", Description: "Choose bot language for this chat (🇬🇧 English / 🇺🇦 Українська)"},
+		{Command: "tgwatch_analyze", Description: "Reply to a message: ask the AI whether it is spam or a scam"},
 		{Command: "tgwatch_help", Description: "Show all available commands"},
 	}
 	cfg := tgbotapi.SetMyCommandsConfig{Commands: commands}
@@ -47,7 +49,14 @@ func Run(cfg *config.Config, st *storage.Storage) {
 
 	adm := admin.New(bot, cfg)
 	flt := filter.New(st)
-	h := newHandler(bot, st, flt, adm, cfg)
+	aic, err := ai.New(cfg.AIProvider, cfg.AIAPIKey, cfg.AIBaseURL, cfg.AIModel) // [FEAT-020]
+	if err != nil {
+		log.Printf("AI disabled: %v", err)
+		aic = nil
+	} else if aic != nil {
+		log.Printf("AI analysis enabled: %s", aic.Name())
+	}
+	h := newHandler(bot, st, flt, adm, cfg, aic)
 
 	// Background goroutine: lift expired sandbox/mute restrictions every minute [FEAT-007]
 	go func() {
@@ -56,6 +65,8 @@ func Run(cfg *config.Config, st *storage.Storage) {
 		for range ticker.C {
 			h.liftExpiredRestrictions()
 			h.kickExpiredVerifications() // [FEAT-015]
+			h.deleteDueMessages()        // [FEAT-018]
+			h.expireReviews()            // [FEAT-025]
 		}
 	}()
 

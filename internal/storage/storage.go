@@ -29,6 +29,21 @@ type Settings struct {
 	WelcomeText          string // [FEAT-017] custom verification greeting (HTML); empty = built-in text
 	RulesText            string // [FEAT-017] chat rules (HTML) shown as an expandable quote; empty = none
 	RulesURL             string // [FEAT-017] link behind the "Chat rules" button; empty = no button
+	NotifyDeleteM        int    // [FEAT-018] minutes before a spam notification is deleted; 0 = keep
+	AIScan               string // [FEAT-024] off | review | warn | delete
+	AIThreshold          int    // [FEAT-024] minimum model confidence to act, percent
+	AIDailyLimit         int    // [FEAT-024] max automatic AI checks per chat per day
+	AIScope              string // [FEAT-024] all | new (members who joined in the last newMemberDays)
+	AINotes              string // [FEAT-024] admin instructions for the model, not shown to members
+	ReviewTo             string // [FEAT-025] chat | dm | group
+	ReviewTarget         string // [FEAT-025] dm: comma-separated user IDs; group: chat ID
+	ReviewTimeoutH       int    // [FEAT-025] hours an unanswered review request stays open
+}
+
+// PendingDeletion is a bot message scheduled for automatic deletion. [FEAT-018]
+type PendingDeletion struct {
+	ChatID    int64
+	MessageID int
 }
 
 // PendingVerification tracks a new member awaiting button verification. [FEAT-015]
@@ -129,6 +144,60 @@ func (s *Storage) migrate() error {
 			message_id INTEGER NOT NULL,
 			PRIMARY KEY (chat_id, message_id)
 		);
+		CREATE TABLE IF NOT EXISTS flagged_messages (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			chat_id    INTEGER NOT NULL,
+			user_id    INTEGER NOT NULL,
+			username   TEXT    NOT NULL DEFAULT '',
+			text       TEXT    NOT NULL,
+			label      TEXT    NOT NULL,
+			source     TEXT    NOT NULL,
+			created_at INTEGER NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_flagged_chat_label ON flagged_messages (chat_id, label, created_at);
+		CREATE TABLE IF NOT EXISTS pending_reviews (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			chat_id         INTEGER NOT NULL,
+			message_id      INTEGER NOT NULL,
+			user_id         INTEGER NOT NULL,
+			username        TEXT    NOT NULL DEFAULT '',
+			display_name    TEXT    NOT NULL DEFAULT '',
+			text            TEXT    NOT NULL,
+			link            TEXT    NOT NULL DEFAULT '',
+			verdict         TEXT    NOT NULL,
+			confidence      REAL    NOT NULL,
+			reason          TEXT    NOT NULL DEFAULT '',
+			rule            TEXT    NOT NULL DEFAULT '',
+			keywords        TEXT    NOT NULL DEFAULT '[]',
+			source          TEXT    NOT NULL,
+			message_deleted INTEGER NOT NULL DEFAULT 0,
+			status          TEXT    NOT NULL DEFAULT 'open',
+			selected        INTEGER NOT NULL DEFAULT 0,
+			keywords_done   INTEGER NOT NULL DEFAULT 0,
+			copies          TEXT    NOT NULL DEFAULT '[]',
+			decided_by      TEXT    NOT NULL DEFAULT '',
+			created_at      INTEGER NOT NULL,
+			expires_at      INTEGER NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS members (
+			chat_id   INTEGER NOT NULL,
+			user_id   INTEGER NOT NULL,
+			joined_at INTEGER NOT NULL,
+			PRIMARY KEY (chat_id, user_id)
+		);
+		CREATE TABLE IF NOT EXISTS ai_usage (
+			chat_id  INTEGER NOT NULL,
+			day      TEXT    NOT NULL,
+			count    INTEGER NOT NULL DEFAULT 0,
+			notified INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (chat_id, day)
+		);
+		CREATE TABLE IF NOT EXISTS pending_deletions (
+			chat_id    INTEGER NOT NULL,
+			message_id INTEGER NOT NULL,
+			delete_at  INTEGER NOT NULL,
+			PRIMARY KEY (chat_id, message_id)
+		);
 		CREATE TABLE IF NOT EXISTS pending_verifications (
 			chat_id    INTEGER NOT NULL,
 			user_id    INTEGER NOT NULL,
@@ -148,6 +217,15 @@ func (s *Storage) migrate() error {
 		`ALTER TABLE settings ADD COLUMN welcome_text TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE settings ADD COLUMN rules_text TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE settings ADD COLUMN rules_url TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE settings ADD COLUMN notify_delete_m INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE settings ADD COLUMN ai_scan TEXT NOT NULL DEFAULT 'off'`,
+		`ALTER TABLE settings ADD COLUMN ai_threshold INTEGER NOT NULL DEFAULT 80`,
+		`ALTER TABLE settings ADD COLUMN ai_daily_limit INTEGER NOT NULL DEFAULT 200`,
+		`ALTER TABLE settings ADD COLUMN ai_scope TEXT NOT NULL DEFAULT 'all'`,
+		`ALTER TABLE settings ADD COLUMN ai_notes TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE settings ADD COLUMN review_to TEXT NOT NULL DEFAULT 'chat'`,
+		`ALTER TABLE settings ADD COLUMN review_target TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE settings ADD COLUMN review_timeout_h INTEGER NOT NULL DEFAULT 24`,
 	} {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return err
@@ -260,14 +338,16 @@ func (s *Storage) GetSettings(chatID int64) (*Settings, error) {
 		return nil, err
 	}
 	row := s.db.QueryRow(
-		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m, language, welcome_text, rules_text, rules_url
+		`SELECT action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, verification_enabled, verification_timeout_m, language, welcome_text, rules_text, rules_url, notify_delete_m,
+		        ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_to, review_target, review_timeout_h
 		 FROM settings WHERE chat_id = ?`,
 		chatID,
 	)
 	var st Settings
 	st.ChatID = chatID
 	var sandboxEnabled, nameFilter, verificationEnabled int
-	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM, &st.Language, &st.WelcomeText, &st.RulesText, &st.RulesURL); err != nil {
+	if err := row.Scan(&st.Action, &st.MuteDurationH, &sandboxEnabled, &st.SandboxHours, &nameFilter, &verificationEnabled, &st.VerificationTimeoutM, &st.Language, &st.WelcomeText, &st.RulesText, &st.RulesURL, &st.NotifyDeleteM,
+		&st.AIScan, &st.AIThreshold, &st.AIDailyLimit, &st.AIScope, &st.AINotes, &st.ReviewTo, &st.ReviewTarget, &st.ReviewTimeoutH); err != nil {
 		return nil, err
 	}
 	st.SandboxEnabled = sandboxEnabled != 0
@@ -456,8 +536,10 @@ func (s *Storage) CopySettings(srcChatID, dstChatID int64) error {
 		return err
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO settings (chat_id, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url)
-		 SELECT ?, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url FROM settings WHERE chat_id = ?`,
+		`INSERT INTO settings (chat_id, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url, notify_delete_m,
+		                       ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_timeout_h)
+		 SELECT ?, action, mute_duration_h, sandbox_enabled, sandbox_hours, name_filter, welcome_text, rules_text, rules_url, notify_delete_m,
+		        ai_scan, ai_threshold, ai_daily_limit, ai_scope, ai_notes, review_timeout_h FROM settings WHERE chat_id = ?`,
 		dstChatID, srcChatID,
 	); err != nil {
 		return err
@@ -582,4 +664,47 @@ func (s *Storage) GetExpiredVerifications() ([]PendingVerification, error) {
 		items = append(items, p)
 	}
 	return items, rows.Err()
+}
+
+// --- Notification auto-delete [FEAT-018] ---
+
+func (s *Storage) SetNotifyDelete(chatID int64, minutes int) error {
+	if err := s.ensureSettings(chatID); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`UPDATE settings SET notify_delete_m = ? WHERE chat_id = ?`, minutes, chatID)
+	return err
+}
+
+// ScheduleDeletion records a bot message to be deleted at deleteAt.
+func (s *Storage) ScheduleDeletion(chatID int64, messageID int, deleteAt time.Time) error {
+	_, err := s.db.Exec(
+		`INSERT OR REPLACE INTO pending_deletions (chat_id, message_id, delete_at) VALUES (?, ?, ?)`,
+		chatID, messageID, deleteAt.Unix(),
+	)
+	return err
+}
+
+// PopDueDeletions returns every message whose deletion time has passed and removes those records.
+func (s *Storage) PopDueDeletions() ([]PendingDeletion, error) {
+	now := time.Now().Unix()
+	rows, err := s.db.Query(`SELECT chat_id, message_id FROM pending_deletions WHERE delete_at <= ?`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PendingDeletion
+	for rows.Next() {
+		var p PendingDeletion
+		if err := rows.Scan(&p.ChatID, &p.MessageID); err != nil {
+			return nil, err
+		}
+		items = append(items, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	_, err = s.db.Exec(`DELETE FROM pending_deletions WHERE delete_at <= ?`, now)
+	return items, err
 }
